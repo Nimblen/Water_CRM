@@ -14,8 +14,8 @@ class TimeStampMixin:
     )
 
 
-class AbstractBase(DeclarativeBase, TimeStampMixin):
+class AbstractBase(TimeStampMixin, DeclarativeBase):
     __abstract__ = True
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4, primary_key=True
+        UUID(as_uuid=True), nullable=False, default=uuid.uuid4, primary_key=True
     )

@@ -4,7 +4,7 @@ from sqlalchemy.future import select
 
 from app.db.models.user import User
 
-#TODO: доделать репозитории
+
 class UserRepository:
 
     def __init__(
@@ -35,3 +35,4 @@ class UserRepository:
         self.session.add(user)
         await self.session.flush()
         return user
+    

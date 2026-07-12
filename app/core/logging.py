@@ -20,7 +20,7 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 
 
-class DropHealthcheckFilter(logging.Filter):
+class DropHealthcheckFilter(logging.Filter):    
     def filter(self, record):
         return "/health" not in record.getMessage()
     

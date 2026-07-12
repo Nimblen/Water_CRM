@@ -15,7 +15,7 @@ engine = create_async_engine(
     connect_args={"command_timeout": 60},
 )
 async_session = sessionmaker(
-    engine, expire_on_commit=False, class_=AsyncSession, expire_on_commit=False
+    engine, expire_on_commit=False, class_=AsyncSession, autoflush=False
 )
 
 
