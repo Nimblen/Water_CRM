@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.user import UserRepository
 from app.core.exceptions.auth import InvalidCredentialsError
 from app.core.exceptions.not_found import UserNotFoundError
-
+from app.core.security import create_access_token, create_refresh_token, verify_password
 
 
 class AuthService:
@@ -38,18 +38,18 @@ class AuthService:
 
         access_token = (
             create_access_token(
-                user.id,
-                user.role.value,
+                {"id": user.id,}
             )
         )
 
         refresh_token = (
             create_refresh_token(
-                user.id,
+                {"id": user.id},
             )
         )
 
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
+            "token_type": "bearer",
         }

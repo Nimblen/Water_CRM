@@ -6,7 +6,10 @@ from app.services.auth import AuthService
 
 
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/auth",
+    tags=["auth"],
+)
 
 
 @router.post(

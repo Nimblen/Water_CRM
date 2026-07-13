@@ -1,7 +1,6 @@
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-
 from core.exceptions.base import AppException
 
 

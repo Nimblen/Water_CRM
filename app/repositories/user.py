@@ -27,12 +27,26 @@ class UserRepository:
         )
 
         return result.scalar_one_or_none()
+    
+    async def get_by_id(
+        self,
+        id: int,
+    ) -> User | None:
+        stmt = (
+            select(User)
+            .where(User.id == id)
+        )
+
+        result = await self.session.execute(
+            stmt
+        )
+
+        return result.scalar_one_or_none()
 
     async def create(
         self,
         user: User,
     ) -> User:
         self.session.add(user)
-        await self.session.flush()
         return user
     
