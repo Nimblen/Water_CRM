@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from app.dependencies.user import CurrentAdminDep
 from app.dependencies.driver import DriverServiceDep, DriverFiltersDep, PaginationDep
-from app.schemas.user import CreateDriver, DriverResponse
+from app.schemas.user import CreateDriver, DriverResponse, UpdateDriver
 from app.schemas.common import PaginatedResponse
 
 router = APIRouter(
@@ -36,7 +36,7 @@ async def get_driver(
     _: CurrentAdminDep,
     service: DriverServiceDep,
 ):
-    return await service.get_by_id(driver_id)
+    return await service.get_driver(driver_id)
 
 
 
@@ -56,3 +56,25 @@ async def get_drivers(
         pagination,
         filters,
     )
+
+
+@router.delete("/drivers/{driver_id}", status_code=204)
+async def delete_driver(
+    driver_id: str,
+    _: CurrentAdminDep,
+    service: DriverServiceDep,
+):
+    return await service.delete_driver(driver_id)
+
+
+
+
+
+@router.patch("/drivers/{driver_id}", status_code=200)
+async def update_driver(
+    driver_data: UpdateDriver,
+    _: CurrentAdminDep,
+    service: DriverServiceDep,
+):
+    return await service.update_driver(driver_data)
+    

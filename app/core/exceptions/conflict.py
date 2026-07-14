@@ -19,3 +19,8 @@ class PhoneAlreadyExistsError(ConflictError):
 class UserAlreadyExistsError(ConflictError):
     code = "USER_ALREADY_EXISTS"
     message = "User already exists"
+
+
+class UserAlreadyInactiveError(ConflictError):
+    code = "USER_ALREADY_INACTIVE"
+    message = "User already inactive"

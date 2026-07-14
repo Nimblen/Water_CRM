@@ -25,18 +25,23 @@ class DriverRepository:
         return driver
 
     async def get_by_id(
-        self,
-        driver_id: UUID,
-    ) -> Driver | None:
-        stmt = (
-            select(Driver)
-            .where(Driver.id == driver_id)
-        )
+            self,
+            driver_id: UUID,
+        ) -> Driver | None:
 
-        result = await self.session.execute(
-            stmt )
+            stmt = (
+                select(Driver)
+                .options(
+                    joinedload(Driver.user)
+                )
+                .where(
+                    Driver.id == driver_id
+                )
+            )
 
-        return result.scalar_one_or_none()
+            result = await self.session.execute(stmt)
+
+            return result.scalar_one_or_none()
     
 
     async def get_all(

@@ -1,11 +1,13 @@
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 import math
 from app.repositories.user import UserRepository
 from app.repositories.driver import DriverRepository
-from app.schemas.user import CreateDriver, DriverResponse, DriverFilters
+from app.schemas.user import CreateDriver, DriverResponse, DriverFilters, UpdateDriver
 from app.schemas.common import PaginationParams, PaginatedResponse
 from app.core.security import hash_password
-from app.core.exceptions.conflict import PhoneAlreadyExistsError
+from app.core.exceptions.conflict import PhoneAlreadyExistsError, UserAlreadyInactiveError
+from app.core.exceptions.not_found import DriverNotFoundError
 from app.core.constants import UserRole
 from app.db.models.driver import Driver
 from app.db.models.user import User
@@ -95,3 +97,32 @@ class DriverService:
             page_size=pagination.page_size,
             pages=pages,
         )
+    
+    async def get_driver(self, driver_id: UUID):
+        driver = await self.driver_repo.get_by_id(driver_id)
+        if not driver:
+            raise DriverNotFoundError()
+        return driver
+
+    async def deactivate_driver(self, driver_id: UUID) -> None:
+        async with self.session.begin():
+            driver = await self.driver_repo.get_by_id(driver_id)
+            if not driver:
+                raise DriverNotFoundError()
+            if not driver.user.is_active:
+                raise UserAlreadyInactiveError()
+            driver.user.is_active = False
+
+
+    async def update_driver(self, update_data: UpdateDriver):
+        update_dict = update_data.model_dump(exclude_unset=True, exclude={"id"})
+
+        async with self.session.begin():
+            driver = await self.driver_repo.get_by_id(update_data.id)
+            if not driver:
+                raise DriverNotFoundError()
+            for key, value in update_dict.items():
+                if hasattr(driver, key):
+                    setattr(driver, key, value)
+                if driver.user and hasattr(driver.user, key):
+                    setattr(driver.user, key, value)

@@ -1,6 +1,6 @@
 from datetime import datetime
-from uuid import uuid4
-from pydantic import BaseModel, EmailStr, ConfigDict
+from uuid import UUID
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
 
 
 
@@ -12,8 +12,8 @@ class CreateDriver(BaseModel):
 
 
 class DriverResponse(BaseModel):
-    id: uuid4
-    user_id: uuid4
+    id: UUID
+    user_id: UUID
     phone: str
     email: EmailStr
     full_name: str
@@ -30,4 +30,10 @@ class DriverResponse(BaseModel):
 class DriverFilters(BaseModel):
     search: str | None = None
 
+
+class UpdateDriver(BaseModel):
+    id: UUID
+    full_name: str | None = Field(default=None)
+    email: EmailStr | None = Field(default=None)
+    phone: str | None = Field(default=None)
 
