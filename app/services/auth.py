@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.user import UserRepository
 from app.core.exceptions.auth import InvalidCredentialsError
 from app.core.exceptions.not_found import UserNotFoundError
+from app.core.exceptions.permissions import AccessDeniedError
 from app.core.security import create_access_token, create_refresh_token, verify_password
 
 
@@ -30,6 +31,9 @@ class AuthService:
         if not user:
             raise UserNotFoundError()
 
+        if not user.is_active:
+            raise AccessDeniedError()
+
         if not verify_password(
             password,
             user.hashed_password,
@@ -38,13 +42,13 @@ class AuthService:
 
         access_token = (
             create_access_token(
-                {"id": user.id,}
+                {"id": str(user.id),}
             )
         )
 
         refresh_token = (
             create_refresh_token(
-                {"id": user.id},
+                {"id": str(user.id)},
             )
         )
 

@@ -44,5 +44,6 @@ class Driver(AbstractBase):
         back_populates="driver",
         uselist=False,
     )
+    routes = relationship("Route", back_populates="driver")
 
 

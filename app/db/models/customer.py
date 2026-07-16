@@ -7,12 +7,12 @@ from sqlalchemy import (
     Numeric,
     Boolean,
     DateTime,
-    Index,
 )
 
 from sqlalchemy.orm import (
     Mapped,
     mapped_column,
+    relationship,
 )
 
 from app.db.base import AbstractBase
@@ -71,7 +71,5 @@ class Customer(AbstractBase):
         Text,
         nullable=True,
     )
-    __table_args__ = (
-        Index("ix_customer_phone", "phone"),
-        Index("ix_customer_full_name", "full_name"),
-    )
+    route_customers = relationship("RouteCustomer", back_populates="customer")
+    payments = relationship("Payment", back_populates="customer")

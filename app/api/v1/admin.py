@@ -64,7 +64,7 @@ async def delete_driver(
     _: CurrentAdminDep,
     service: DriverServiceDep,
 ):
-    return await service.delete_driver(driver_id)
+    return await service.deactivate_driver(driver_id)
 
 
 

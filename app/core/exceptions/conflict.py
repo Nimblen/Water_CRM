@@ -24,3 +24,9 @@ class UserAlreadyExistsError(ConflictError):
 class UserAlreadyInactiveError(ConflictError):
     code = "USER_ALREADY_INACTIVE"
     message = "User already inactive"
+
+
+
+class InvalidDeliveryStatusError(ConflictError):
+    code = "INVALID_DELIVERY_STATUS"
+    message = "Invalid delivery status"

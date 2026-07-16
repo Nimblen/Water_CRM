@@ -24,3 +24,14 @@ class ContractNotFoundError(NotFoundError):
 class DriverNotFoundError(NotFoundError):
     code = "DRIVER_NOT_FOUND"
     message = "Driver not found"
+
+
+class RouteNotFoundError(NotFoundError):
+    code = "ROUTE_NOT_FOUND"
+    message = "Route not found"
+
+
+
+class RouteCustomerNotFoundError(NotFoundError):
+    code = "ROUTE_CUSTOMER_NOT_FOUND"
+    message = "Route customer not found"

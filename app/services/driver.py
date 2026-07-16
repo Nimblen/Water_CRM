@@ -55,7 +55,7 @@ class DriverService:
         return DriverResponse(
             id=driver.id,
             user_id=user.id,
-            phone=user.phone,
+            phone=data.phone,
             email=driver.email,
             full_name=driver.full_name,
             trip_count=driver.trip_count,
@@ -98,11 +98,21 @@ class DriverService:
             pages=pages,
         )
     
-    async def get_driver(self, driver_id: UUID):
+    async def get_driver(self, driver_id: UUID) -> DriverResponse:
         driver = await self.driver_repo.get_by_id(driver_id)
         if not driver:
             raise DriverNotFoundError()
-        return driver
+        return DriverResponse(
+            id=driver.id,
+            user_id=driver.user_id,
+            phone=driver.user.phone,
+            email=driver.email,
+            full_name=driver.full_name,
+            trip_count=driver.trip_count,
+            today_trip_count=driver.today_trip_count,
+            created_at=driver.created_at,
+            updated_at=driver.updated_at,
+        )
 
     async def deactivate_driver(self, driver_id: UUID) -> None:
         async with self.session.begin():
@@ -116,11 +126,14 @@ class DriverService:
 
     async def update_driver(self, update_data: UpdateDriver):
         update_dict = update_data.model_dump(exclude_unset=True, exclude={"id"})
-
         async with self.session.begin():
             driver = await self.driver_repo.get_by_id(update_data.id)
             if not driver:
                 raise DriverNotFoundError()
+            if update_data.phone:
+                existing = await self.user_repo.get_by_phone(update_data.phone)
+                if existing and existing.id != driver.user_id:
+                    raise PhoneAlreadyExistsError()
             for key, value in update_dict.items():
                 if hasattr(driver, key):
                     setattr(driver, key, value)
