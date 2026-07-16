@@ -48,4 +48,4 @@ class UpdateDeliveryStatus(BaseModel):
 class CompleteDelivery(BaseModel):
     delivered_bottles: int = Field(ge=0)
     payment_amount: Decimal = Field(ge=0)
-    payment_photo: str | None = None = Field(default=None)
+    payment_photo: str | None = Field(default=None)

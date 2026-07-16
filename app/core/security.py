@@ -8,7 +8,7 @@ from app.core.config import get_settings
 settings = get_settings()
 SECRET_KEY = settings.JWT_SECRET
 ALGORITHM = settings.JWT_ALGORITHM
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 def hash_password(password: str):
     return pwd_context.hash(password)

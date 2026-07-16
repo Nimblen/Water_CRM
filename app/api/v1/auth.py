@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.schemas.auth import LoginRequest, LoginResponse
-from app.services.auth import AuthService
+from app.dependencies.common import AuthDep
 
 
 
@@ -18,7 +18,7 @@ router = APIRouter(
 )
 async def login(
     data: LoginRequest,
-    service: AuthService
+    service: AuthDep
 ):
     return await service.login(
         phone=data.phone,

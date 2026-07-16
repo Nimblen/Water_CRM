@@ -1,5 +1,4 @@
-
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import Enum
 from app.db.base import AbstractBase
 from app.core.constants import UserRole

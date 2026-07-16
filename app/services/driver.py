@@ -30,25 +30,24 @@ class DriverService:
         if await self.user_repo.get_by_phone(data.phone):
             raise PhoneAlreadyExistsError()
 
-        async with self.session.begin():
 
-            user = User(
-                phone=data.phone,
-                hashed_password=hash_password(data.password),
-                role=UserRole.DRIVER,
-            )
+        user = User(
+            phone=data.phone,
+            hashed_password=hash_password(data.password),
+            role=UserRole.DRIVER,
+        )
 
-            await self.user_repo.create(user)
+        await self.user_repo.create(user)
 
-            await self.session.flush()
+        await self.session.flush()
 
-            driver = Driver(
-                user_id=user.id,
-                full_name=data.full_name,
-                email=data.email,
-            )
+        driver = Driver(
+            user_id=user.id,
+            full_name=data.full_name,
+            email=data.email,
+        )
 
-            await self.driver_repo.create(driver)
+        await self.driver_repo.create(driver)
 
         await self.session.refresh(driver)
 
@@ -115,27 +114,25 @@ class DriverService:
         )
 
     async def deactivate_driver(self, driver_id: UUID) -> None:
-        async with self.session.begin():
-            driver = await self.driver_repo.get_by_id(driver_id)
-            if not driver:
-                raise DriverNotFoundError()
-            if not driver.user.is_active:
-                raise UserAlreadyInactiveError()
-            driver.user.is_active = False
+        driver = await self.driver_repo.get_by_id(driver_id)
+        if not driver:
+            raise DriverNotFoundError()
+        if not driver.user.is_active:
+            raise UserAlreadyInactiveError()
+        driver.user.is_active = False
 
 
     async def update_driver(self, update_data: UpdateDriver):
         update_dict = update_data.model_dump(exclude_unset=True, exclude={"id"})
-        async with self.session.begin():
-            driver = await self.driver_repo.get_by_id(update_data.id)
-            if not driver:
-                raise DriverNotFoundError()
-            if update_data.phone:
-                existing = await self.user_repo.get_by_phone(update_data.phone)
-                if existing and existing.id != driver.user_id:
-                    raise PhoneAlreadyExistsError()
-            for key, value in update_dict.items():
-                if hasattr(driver, key):
-                    setattr(driver, key, value)
-                if driver.user and hasattr(driver.user, key):
-                    setattr(driver.user, key, value)
+        driver = await self.driver_repo.get_by_id(update_data.id)
+        if not driver:
+            raise DriverNotFoundError()
+        if update_data.phone:
+            existing = await self.user_repo.get_by_phone(update_data.phone)
+            if existing and existing.id != driver.user_id:
+                raise PhoneAlreadyExistsError()
+        for key, value in update_dict.items():
+            if hasattr(driver, key):
+                setattr(driver, key, value)
+            if driver.user and hasattr(driver.user, key):
+                setattr(driver.user, key, value)

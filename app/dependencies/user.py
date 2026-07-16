@@ -1,6 +1,6 @@
 from typing import Annotated
 from fastapi import Depends
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from uuid import UUID
 from app.core.security import verify_token
 from app.core.exceptions.auth import InvalidTokenError
@@ -11,18 +11,26 @@ from app.db.models.user import User
 from app.core.constants import UserRole
 from app.dependencies.session import SessionDep
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+security = HTTPBearer()
 
 
-async def get_current_user(db: SessionDep, token: str = Depends(oauth2_scheme)):
-    payload = verify_token(token)
+async def get_current_user(
+    db: SessionDep,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    payload = verify_token(credentials.credentials)
+
     if not payload:
         raise InvalidTokenError()
+
     user = await UserRepository(db).get_by_id(UUID(payload["id"]))
+
     if not user:
         raise UserNotFoundError()
+
     if not user.is_active:
         raise AccessDeniedError()
+
     return user
 
 

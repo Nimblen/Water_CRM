@@ -1,0 +1,11 @@
+fastapi
+pydantic-settings
+sqlalchemy
+structlog
+alembic
+uvicorn
+asyncpg
+PyJWT
+passlib
+pydantic[email]
+argon2_cffi
