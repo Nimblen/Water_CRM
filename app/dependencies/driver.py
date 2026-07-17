@@ -10,7 +10,7 @@ from app.schemas.common import PaginationParams
 from app.core.exceptions.permissions import AccessDeniedError
 from app.core.constants import UserRole
 
-def get_driver_service(
+def get_driver_service( 
     session: SessionDep,
 ) -> DriverService:
     return DriverService(session)
@@ -48,10 +48,10 @@ PaginationDep = Annotated[
 
 
 
-CurrentDriverIdDep = Annotated[UUID, Depends()]
+CurrentDriverIdDep = Annotated[UUID, Depends(get_current_driver_id)]
 
 
 DriverRouteServiceDep = Annotated[
-    DriverService,
+    DriverRouteService,
     Depends(get_driver_route_service),
 ]

@@ -35,3 +35,9 @@ class RefreshTokenRevokedError(AppException):
     status_code = 401
     code = "REFRESH_TOKEN_REVOKED"
     message = "Refresh token revoked"
+
+
+class TokenTypeError(AppException):
+    status_code = 401
+    code = "INVALID_TOKEN_TYPE"
+    message = "Invalid token type"

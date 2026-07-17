@@ -15,6 +15,10 @@ class PhoneAlreadyExistsError(ConflictError):
     code = "PHONE_ALREADY_EXISTS"
     message = "Phone already exists"
 
+class CustomerPhoneAlreadyExistsError(ConflictError):
+    code = "CUSTOMER_PHONE_ALREADY_EXISTS"
+    message = "Customer phone already exists"
+
 
 class UserAlreadyExistsError(ConflictError):
     code = "USER_ALREADY_EXISTS"

@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.db.models.route import Route
 from app.db.models.route_customer import RouteCustomer
+from app.core.constants import DeliveryStatus
 
 
 class RouteRepository:
@@ -53,10 +54,11 @@ class RouteRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def count_pending(self, route_id: UUID) -> int:
+
+    async def count_unresolved(self, route_id: UUID) -> int:
         stmt = select(func.count()).where(
             RouteCustomer.route_id == route_id,
-            RouteCustomer.status.in_(["pending", "on_way"]),
+            RouteCustomer.status.in_([DeliveryStatus.PENDING, DeliveryStatus.ON_WAY]),
         )
         result = await self.session.execute(stmt)
         return result.scalar_one()

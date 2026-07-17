@@ -49,6 +49,8 @@ class DriverService:
 
         await self.driver_repo.create(driver)
 
+        await self.session.flush()
+
         await self.session.refresh(driver)
 
         return DriverResponse(
@@ -76,6 +78,7 @@ class DriverService:
         items = [
             DriverResponse(
                 id=driver.id,
+                user_id=driver.user_id,
                 phone=driver.user.phone,
                 email=driver.email,
                 full_name=driver.full_name,
@@ -136,3 +139,16 @@ class DriverService:
                 setattr(driver, key, value)
             if driver.user and hasattr(driver.user, key):
                 setattr(driver.user, key, value)
+        await self.session.flush()
+        await self.session.refresh(driver)
+        return DriverResponse(
+            id=driver.id,
+            user_id=driver.user_id,
+            phone=driver.user.phone,
+            email=driver.email,
+            full_name=driver.full_name,
+            trip_count=driver.trip_count,
+            today_trip_count=driver.today_trip_count,
+            created_at=driver.created_at,
+            updated_at=driver.updated_at,
+        )

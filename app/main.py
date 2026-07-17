@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.auth import router as auth_router
 from app.api.v1.admin import router as admin_router
 from app.api.v1.driver import router as driver_router
+from app.api.v1.admin_customer import router as admin_customer
 
 from app.middlewares.logging_middleware import logging_middleware
 from app.core.exceptions.handlers import register_exception_handlers
@@ -30,3 +31,4 @@ app.middleware("http")(logging_middleware)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(driver_router)
+app.include_router(admin_customer)

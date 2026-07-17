@@ -1,7 +1,7 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-
+from sqlalchemy.orm import selectinload
 from app.db.models.user import User
 
 
@@ -35,6 +35,9 @@ class UserRepository:
         stmt = (
             select(User)
             .where(User.id == id)
+            .options(
+                selectinload(User.driver)
+            )
         )
 
         result = await self.session.execute(

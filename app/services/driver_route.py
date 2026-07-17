@@ -2,7 +2,9 @@ from uuid import UUID
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.route import RouteRepository
+from app.repositories.price_settings import PriceSettingsRepository
 from app.db.models.payment import Payment
+from app.db.models.route import Route
 from app.core.constants import DeliveryStatus, RouteStatus
 from app.core.exceptions.not_found import RouteNotFoundError, RouteCustomerNotFoundError
 from app.core.exceptions.conflict import InvalidDeliveryStatusError
@@ -14,11 +16,14 @@ from app.schemas.route import (
     CompleteDelivery,
 )
 
+TERMINAL_STATUSES = (DeliveryStatus.DELIVERED, DeliveryStatus.PAID, DeliveryStatus.FAILED)
+
 
 class DriverRouteService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.route_repo = RouteRepository(session)
+        self.price_repo = PriceSettingsRepository(session)
 
     async def get_my_routes(self, driver_id: UUID) -> list[RouteListItem]:
         routes = await self.route_repo.get_by_driver(driver_id)
@@ -75,10 +80,14 @@ class DriverRouteService:
         if not rc:
             raise RouteCustomerNotFoundError()
 
-        if rc.status in (DeliveryStatus.DELIVERED, DeliveryStatus.PAID):
+        if rc.status in TERMINAL_STATUSES:
             raise InvalidDeliveryStatusError()
 
         rc.status = data.status
+
+        if data.status == DeliveryStatus.FAILED:
+            rc.completed_at = datetime.now(tz=timezone.utc)
+            await self._finalize_route_if_needed(rc.route)
 
     async def complete_delivery(
         self,
@@ -92,11 +101,12 @@ class DriverRouteService:
         if not rc:
             raise RouteCustomerNotFoundError()
 
-        if rc.status in (DeliveryStatus.DELIVERED, DeliveryStatus.PAID):
+        if rc.status in TERMINAL_STATUSES:
             raise InvalidDeliveryStatusError()
 
         now = datetime.now(tz=timezone.utc)
         customer = rc.customer
+        price_settings = await self.price_repo.get_current()
 
         rc.delivered_bottles = data.delivered_bottles
         rc.payment_amount = data.payment_amount
@@ -108,14 +118,14 @@ class DriverRouteService:
             else DeliveryStatus.DELIVERED
         )
 
-        # FR-7 / BR-4 / BR-5: пересчёт баланса заказчика
-        order_cost = data.delivered_bottles * 1  # TODO: подставить актуальную цену бутыли из PriceSettings
+        order_cost = data.delivered_bottles * price_settings.water_price
+        net = customer.prepayment - customer.debt + data.payment_amount - order_cost
+
         customer.bottle_balance += data.delivered_bottles
-        customer.debt = max(customer.debt + order_cost - data.payment_amount, 0)
-        customer.prepayment = max(data.payment_amount - order_cost - customer.debt, 0)
+        customer.debt = max(-net, 0)
+        customer.prepayment = max(net, 0)
         customer.last_order_date = now
 
-        # платёж
         payment = Payment(
             customer_id=customer.id,
             route_customer_id=rc.id,
@@ -124,9 +134,13 @@ class DriverRouteService:
         )
         self.session.add(payment)
 
-        # BR-1: маршрут завершён, если все доставки завершены
         route = rc.route
         route.completed_count += 1
-        pending = await self.route_repo.count_pending(route.id)
-        if pending == 0:
+        await self._finalize_route_if_needed(route)
+
+    async def _finalize_route_if_needed(self, route: Route) -> None:
+        if route.status == RouteStatus.CANCELLED:
+            return
+        unresolved = await self.route_repo.count_unresolved(route.id)
+        if unresolved == 0:
             route.status = RouteStatus.COMPLETED

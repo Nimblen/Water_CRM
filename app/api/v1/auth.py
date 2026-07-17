@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.schemas.auth import LoginRequest, LoginResponse
+from app.schemas.auth import LoginRequest, LoginResponse, RefreshRequest
 from app.dependencies.common import AuthDep
 
 
@@ -23,4 +23,18 @@ async def login(
     return await service.login(
         phone=data.phone,
         password=data.password,
+    )
+
+
+
+@router.post(
+    "/refresh",
+    response_model=LoginResponse,
+)
+async def refresh(
+    data: RefreshRequest,
+    service: AuthDep
+):
+    return await service.refresh(
+        refresh_token=data.refresh_token,
     )
