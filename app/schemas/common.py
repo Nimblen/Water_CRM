@@ -1,3 +1,4 @@
+import math
 from pydantic import BaseModel, Field
 from typing import Generic, TypeVar
 
@@ -32,3 +33,14 @@ class PaginatedResponse(BaseModel, Generic[T]):
     page: int
     page_size: int
     pages: int
+
+
+def build_paginated_response(items, total, pagination) -> PaginatedResponse:
+    pages = math.ceil(total / pagination.page_size) if total else 0
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=pagination.page,
+        page_size=pagination.page_size,
+        pages=pages,
+    )

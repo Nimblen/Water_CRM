@@ -34,3 +34,9 @@ class UserAlreadyInactiveError(ConflictError):
 class InvalidDeliveryStatusError(ConflictError):
     code = "INVALID_DELIVERY_STATUS"
     message = "Invalid delivery status"
+
+
+class RouteAlreadyStartedError(ConflictError):
+    code = "ROUTE_ALREADY_STARTED"
+    message = "Route already started"
+    detail = "Нельзя сменить водителя — маршрут уже в работе"

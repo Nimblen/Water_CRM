@@ -7,7 +7,7 @@ from app.schemas.customer import (
     CustomerResponse,
     CustomerFilters,
 )
-from app.schemas.common import PaginationParams, PaginatedResponse
+from app.schemas.common import PaginationParams, PaginatedResponse, build_paginated_response
 from app.core.exceptions.not_found import CustomerNotFoundError
 from app.core.exceptions.conflict import CustomerPhoneAlreadyExistsError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,11 +44,10 @@ class CustomerService:
         self, pagination: PaginationParams, filters: CustomerFilters
     ) -> PaginatedResponse[CustomerResponse]:
         customers, total = await self.repo.get_list(pagination, filters)
-        return PaginatedResponse(
-            items=[CustomerResponse.model_validate(c) for c in customers],
+        return build_paginated_response(
+            items=[CustomerResponse.model_validate(customer) for customer in customers],
             total=total,
-            page=pagination.page,
-            page_size=pagination.page_size,
+            pagination=pagination,
         )
 
     async def update_customer(

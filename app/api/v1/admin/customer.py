@@ -6,7 +6,7 @@ from app.dependencies.customer import CustomerServiceDep, CustomerFiltersDep
 from app.dependencies.driver import PaginationDep
 from app.schemas.customer import CreateCustomer, UpdateCustomer, CustomerResponse
 from app.schemas.common import PaginatedResponse
-
+from app.dependencies.idempotency import IdempotencyKeyDep
 router = APIRouter(prefix="/admin/customers", tags=["admin:customers"])
 
 
@@ -15,9 +15,12 @@ async def create_customer(
     data: CreateCustomer,
     _: CurrentAdminDep,
     service: CustomerServiceDep,
+    idempotency_key: IdempotencyKeyDep,
 ):
-    return await service.create_customer(data)
-
+    customer = await service.create_customer(data)
+    if idempotency_key:
+        await service.idempotency_repo.save(idempotency_key, endpoint="/admin/customers", status_code=201, response_body=customer.model_dump(mode="json"))
+    return customer
 
 @router.get("", response_model=PaginatedResponse[CustomerResponse])
 async def get_customers(

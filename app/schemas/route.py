@@ -62,3 +62,34 @@ class RouteListItem(BaseModel):
     total_customers: int
 
     model_config = {"from_attributes": True}
+
+
+
+
+
+class CreateRoute(BaseModel):
+    driver_id: UUID
+    date: date_type
+    customer_ids: list[UUID] = Field(default_factory=list)
+
+
+class UpdateRoute(BaseModel):
+    date: date_type | None = None
+    status: RouteStatus | None = None
+
+
+class RouteFilters(BaseModel):
+    driver_id: UUID | None = None
+    status: RouteStatus | None = None
+    date_from: date_type | None = None
+    date_to: date_type | None = None
+
+
+class AdminRouteListItem(RouteListItem):
+    driver_id: UUID
+    driver_full_name: str
+
+
+class AdminRouteResponse(RouteResponse):
+    driver_id: UUID
+    driver_full_name: str

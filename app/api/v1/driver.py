@@ -2,7 +2,7 @@ from uuid import UUID
 from fastapi import APIRouter
 from app.dependencies.driver import CurrentDriverIdDep, DriverRouteServiceDep
 from app.schemas.route import RouteResponse, RouteListItem, UpdateDeliveryStatus, CompleteDelivery
-
+from app.dependencies.idempotency import IdempotencyKeyDep
 router = APIRouter(prefix="/driver", tags=["driver"])
 
 
@@ -39,5 +39,11 @@ async def complete_delivery(
     data: CompleteDelivery,
     driver_id: CurrentDriverIdDep,
     service: DriverRouteServiceDep,
+    idempotency_key: IdempotencyKeyDep,
 ):
     await service.complete_delivery(route_customer_id, driver_id, data)
+    if idempotency_key:
+        await service.idempotency_repo.save(
+            idempotency_key, endpoint="/driver/routes/customers/{route_customer_id}/complete",
+            status_code=204, response_body={},
+        )

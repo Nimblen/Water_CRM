@@ -4,13 +4,21 @@ import math
 from app.repositories.user import UserRepository
 from app.repositories.driver import DriverRepository
 from app.schemas.user import CreateDriver, DriverResponse, DriverFilters, UpdateDriver
-from app.schemas.common import PaginationParams, PaginatedResponse
+from app.schemas.common import (
+    PaginationParams,
+    PaginatedResponse,
+    build_paginated_response,
+)
 from app.core.security import hash_password
-from app.core.exceptions.conflict import PhoneAlreadyExistsError, UserAlreadyInactiveError
+from app.core.exceptions.conflict import (
+    PhoneAlreadyExistsError,
+    UserAlreadyInactiveError,
+)
 from app.core.exceptions.not_found import DriverNotFoundError
 from app.core.constants import UserRole
 from app.db.models.driver import Driver
 from app.db.models.user import User
+from app.repositories.idempotency import IdempotencyRepository
 
 
 class DriverService:
@@ -21,6 +29,7 @@ class DriverService:
         self.session = session
         self.user_repo = UserRepository(session)
         self.driver_repo = DriverRepository(session)
+        self.idempotency_repo = IdempotencyRepository(session)
 
     async def create_driver(
         self,
@@ -29,7 +38,6 @@ class DriverService:
 
         if await self.user_repo.get_by_phone(data.phone):
             raise PhoneAlreadyExistsError()
-
 
         user = User(
             phone=data.phone,
@@ -90,16 +98,12 @@ class DriverService:
             for driver in drivers
         ]
 
-        pages = math.ceil(total / pagination.page_size)
-
-        return PaginatedResponse(
+        return build_paginated_response(
             items=items,
             total=total,
-            page=pagination.page,
-            page_size=pagination.page_size,
-            pages=pages,
+            pagination=pagination,
         )
-    
+
     async def get_driver(self, driver_id: UUID) -> DriverResponse:
         driver = await self.driver_repo.get_by_id(driver_id)
         if not driver:
@@ -123,7 +127,6 @@ class DriverService:
         if not driver.user.is_active:
             raise UserAlreadyInactiveError()
         driver.user.is_active = False
-
 
     async def update_driver(self, update_data: UpdateDriver):
         update_dict = update_data.model_dump(exclude_unset=True, exclude={"id"})
