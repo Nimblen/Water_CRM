@@ -1,3 +1,4 @@
+from uuid import UUID
 from fastapi import APIRouter
 
 from app.dependencies.user import CurrentAdminDep
@@ -36,7 +37,7 @@ async def create_driver(
     status_code=200,
 )
 async def get_driver(
-    driver_id: str,
+    driver_id: UUID,
     _: CurrentAdminDep,
     service: DriverServiceDep,
 ):
@@ -64,7 +65,7 @@ async def get_drivers(
 
 @router.delete("/{driver_id}", status_code=204)
 async def delete_driver(
-    driver_id: str,
+    driver_id: UUID,
     _: CurrentAdminDep,
     service: DriverServiceDep,
 ):
@@ -76,9 +77,10 @@ async def delete_driver(
 
 @router.patch("/{driver_id}", status_code=200)
 async def update_driver(
+    driver_id: UUID,
     driver_data: UpdateDriver,
     _: CurrentAdminDep,
     service: DriverServiceDep,
 ):
-    return await service.update_driver(driver_data)
+    return await service.update_driver(dirver_id, driver_data)
     

@@ -4,8 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.route import RouteRepository
 from app.repositories.driver import DriverRepository
 from app.repositories.customer import CustomerRepository
-from app.core.exceptions.not_found import RouteNotFoundError, DriverNotFoundError, CustomerNotFoundError
-from app.core.exceptions.conflict import RouteAlreadyStartedError
+from app.core.exceptions.not_found import RouteNotFoundError, DriverNotFoundError, CustomerNotFoundError, RouteCustomerNotFoundError
+from app.core.exceptions.conflict import RouteAlreadyStartedError, RouteAlreadyCompletedError
+from app.core.exceptions.validation import InvalidUpdateFieldsError
 from app.core.constants import RouteStatus
 from app.schemas.route import (
     CreateRoute, UpdateRoute, RouteFilters,
@@ -13,6 +14,8 @@ from app.schemas.route import (
 )
 from app.schemas.common import PaginationParams, PaginatedResponse, build_paginated_response
 from app.repositories.idempotency import IdempotencyRepository
+
+ALLOWED_ROUTE_UPDATE_FIELDS = {"date"}
 
 
 class AdminRouteService:
@@ -69,6 +72,10 @@ class AdminRouteService:
             raise RouteNotFoundError()
 
         update_data = data.model_dump(exclude_unset=True)
+        disallowed = set(update_data) - ALLOWED_ROUTE_UPDATE_FIELDS
+        if disallowed:
+            raise InvalidUpdateFieldsError(disallowed)
+
         for field, value in update_data.items():
             setattr(route, field, value)
 
@@ -102,19 +109,21 @@ class AdminRouteService:
         if not rc:
             raise RouteCustomerNotFoundError()
 
-        route = rc.route
-
         await self.repo.delete_route_customer(rc)
-
         await self.session.flush()
 
-        if len(route.route_customers) == 0:
+        remaining = await self.repo.count_customers(route_id)
+        if remaining == 0:
+            route = await self.repo.get_by_id(route_id)
             route.status = RouteStatus.CANCELLED
+            await self.session.flush()
 
     async def cancel_route(self, route_id: UUID) -> None:
         route = await self.repo.get_by_id(route_id)
         if not route:
             raise RouteNotFoundError()
+        if route.status == RouteStatus.COMPLETED:
+            raise RouteAlreadyCompletedError()
         route.status = RouteStatus.CANCELLED
         await self.session.flush()
 

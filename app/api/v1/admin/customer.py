@@ -57,4 +57,4 @@ async def delete_customer(
     _: CurrentAdminDep,
     service: CustomerServiceDep,
 ):
-    await service.delete_customer(customer_id)
+    await service.deactivate_customer(customer_id)

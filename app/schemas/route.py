@@ -27,6 +27,7 @@ class CompleteDelivery(BaseModel):
     delivered_bottles: int = Field(ge=0)
     payment_amount: Decimal = Field(ge=0, max_digits=12, decimal_places=2)
     payment_photo: str | None = Field(default=None, max_length=500)
+    bottle_balance: int | None = Field(default=None, ge=0)
 
 
 class RouteCustomerResponse(BaseModel):

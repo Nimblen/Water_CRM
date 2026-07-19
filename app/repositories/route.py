@@ -127,3 +127,11 @@ class RouteRepository:
 
     async def delete_route_customer(self, rc: RouteCustomer) -> None:
         await self.session.delete(rc)
+
+    async def count_customers(self, route_id: uuid.UUID) -> int:
+        result = await self.session.scalar(
+            select(func.count())
+            .select_from(RouteCustomer)
+            .where(RouteCustomer.route_id == route_id)
+        )
+        return result or 0

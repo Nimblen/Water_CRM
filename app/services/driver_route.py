@@ -1,6 +1,7 @@
 from uuid import UUID
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.repositories.route import RouteRepository
 from app.repositories.price_settings import PriceSettingsRepository
 from app.db.models.payment import Payment
@@ -17,6 +18,8 @@ from app.schemas.route import (
 )
 
 TERMINAL_STATUSES = (DeliveryStatus.DELIVERED, DeliveryStatus.PAID, DeliveryStatus.FAILED)
+
+DRIVER_SETTABLE_STATUSES = (DeliveryStatus.ON_WAY, DeliveryStatus.FAILED)
 
 
 class DriverRouteService:
@@ -83,11 +86,16 @@ class DriverRouteService:
         if rc.status in TERMINAL_STATUSES:
             raise InvalidDeliveryStatusError()
 
+        if data.status not in DRIVER_SETTABLE_STATUSES:
+            raise InvalidDeliveryStatusError()
+
         rc.status = data.status
 
         if data.status == DeliveryStatus.FAILED:
             rc.completed_at = datetime.now(tz=timezone.utc)
             await self._finalize_route_if_needed(rc.route)
+
+        await self.session.flush()
 
     async def complete_delivery(
         self,
@@ -120,23 +128,29 @@ class DriverRouteService:
 
         order_cost = data.delivered_bottles * price_settings.water_price
         net = customer.prepayment - customer.debt + data.payment_amount - order_cost
-
-        customer.bottle_balance += data.delivered_bottles
+        customer.bottle_balance = data.bottle_balance
         customer.debt = max(-net, 0)
         customer.prepayment = max(net, 0)
         customer.last_order_date = now
 
-        payment = Payment(
-            customer_id=customer.id,
-            route_customer_id=rc.id,
-            amount=data.payment_amount,
-            photo_url=data.payment_photo,
-        )
-        self.session.add(payment)
+        if data.payment_amount > 0:
+            payment = Payment(
+                customer_id=customer.id,
+                route_customer_id=rc.id,
+                amount=data.payment_amount,
+                photo_url=data.payment_photo,
+            )
+            self.session.add(payment)
 
         route = rc.route
         route.completed_count += 1
+
+        driver = route.driver
+        driver.trip_count += 1
+        driver.today_trip_count += 1
+
         await self._finalize_route_if_needed(route)
+        await self.session.flush()
 
     async def _finalize_route_if_needed(self, route: Route) -> None:
         if route.status == RouteStatus.CANCELLED:

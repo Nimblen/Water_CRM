@@ -32,8 +32,8 @@ class DriverFilters(BaseModel):
 
 
 class UpdateDriver(BaseModel):
-    id: UUID
     full_name: str | None = Field(default=None)
     email: EmailStr | None = Field(default=None)
     phone: str | None = Field(default=None)
 
+    model_config = ConfigDict(extra="ignore")

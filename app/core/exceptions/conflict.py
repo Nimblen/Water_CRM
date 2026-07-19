@@ -40,3 +40,18 @@ class RouteAlreadyStartedError(ConflictError):
     code = "ROUTE_ALREADY_STARTED"
     message = "Route already started"
     detail = "Нельзя сменить водителя — маршрут уже в работе"
+
+
+class RouteAlreadyCompletedError(ConflictError):
+    code = "ROUTE_ALREADY_COMPLETED"
+    message = "Route already completed"
+
+
+
+class CustomerAlreadyInactiveError(ConflictError):
+    code = "CUSTOMER_ALREADY_INACTIVE"
+    message = "Customer already inactive"
+
+class CustomerAlreadyActiveError(ConflictError):
+    code = "CUSTOMER_ALREADY_ACTIVE"
+    message = "Customer already active"
