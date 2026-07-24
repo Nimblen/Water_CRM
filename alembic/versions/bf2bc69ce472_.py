@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 62d6434aa3eb
+Revision ID: bf2bc69ce472
 Revises: 
-Create Date: 2026-07-16 17:26:06.607751
+Create Date: 2026-07-24 18:37:21.882558
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '62d6434aa3eb'
+revision: str = 'bf2bc69ce472'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -38,6 +38,25 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_customers_full_name'), 'customers', ['full_name'], unique=False)
     op.create_index(op.f('ix_customers_phone'), 'customers', ['phone'], unique=False)
+    op.create_table('idempotency_keys',
+    sa.Column('key', sa.String(length=255), nullable=False),
+    sa.Column('endpoint', sa.String(length=255), nullable=False),
+    sa.Column('status_code', sa.Integer(), nullable=False),
+    sa.Column('response_body', sa.JSON(), nullable=False),
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_idempotency_keys_key'), 'idempotency_keys', ['key'], unique=True)
+    op.create_table('price_settings',
+    sa.Column('water_price', sa.Numeric(precision=12, scale=2), nullable=False),
+    sa.Column('deposit_price', sa.Numeric(precision=12, scale=2), nullable=False),
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('users',
     sa.Column('phone', sa.String(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
@@ -124,6 +143,9 @@ def downgrade() -> None:
     op.drop_table('drivers')
     op.drop_index(op.f('ix_users_phone'), table_name='users')
     op.drop_table('users')
+    op.drop_table('price_settings')
+    op.drop_index(op.f('ix_idempotency_keys_key'), table_name='idempotency_keys')
+    op.drop_table('idempotency_keys')
     op.drop_index(op.f('ix_customers_phone'), table_name='customers')
     op.drop_index(op.f('ix_customers_full_name'), table_name='customers')
     op.drop_table('customers')
