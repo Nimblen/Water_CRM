@@ -39,7 +39,7 @@ COPY requirements/prod.txt .
 RUN pip install --no-cache /wheels/*
 
 COPY . .
-
+RUN mkdir -p /app/uploads && chown -R appuser:appuser /app
 RUN chmod +x scripts/*.sh
 RUN chown -R appuser:appuser /app
 

@@ -1,5 +1,6 @@
 from uuid import UUID
-from fastapi import APIRouter
+from app.services.storage import save_payment_photo
+from fastapi import APIRouter, File, UploadFile
 from app.dependencies.driver import CurrentDriverIdDep, DriverRouteServiceDep
 from app.schemas.route import RouteResponse, RouteListItem, UpdateDeliveryStatus, CompleteDelivery
 from app.dependencies.idempotency import IdempotencyKeyDep
@@ -40,8 +41,9 @@ async def complete_delivery(
     driver_id: CurrentDriverIdDep,
     service: DriverRouteServiceDep,
     idempotency_key: IdempotencyKeyDep,
+    payment_photo: UploadFile | None = File(default=None),
 ):
-    await service.complete_delivery(route_customer_id, driver_id, data)
+    await service.complete_delivery(route_customer_id, driver_id, data, payment_photo)
     if idempotency_key:
         await service.idempotency_repo.save(
             idempotency_key, endpoint="/driver/routes/customers/{route_customer_id}/complete",

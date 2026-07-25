@@ -47,7 +47,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - .:/app
+      - uploads_data:/app/uploads
     expose:
       - "8000"
 
@@ -58,9 +58,11 @@ services:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - uploads_data:/app/uploads:ro
     depends_on:
       - app
 
 volumes:
   postgres_data:
   redis_data:
+  uploads_data:

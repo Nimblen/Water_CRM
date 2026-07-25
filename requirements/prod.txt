@@ -9,3 +9,4 @@ PyJWT
 passlib
 pydantic[email]
 argon2_cffi
+python-multipart

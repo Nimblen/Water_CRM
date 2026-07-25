@@ -1,7 +1,7 @@
 from uuid import UUID
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from fastapi import UploadFile
 from app.repositories.route import RouteRepository
 from app.repositories.price_settings import PriceSettingsRepository
 from app.db.models.payment import Payment
@@ -9,6 +9,7 @@ from app.db.models.route import Route
 from app.core.constants import DeliveryStatus, RouteStatus
 from app.core.exceptions.not_found import RouteNotFoundError, RouteCustomerNotFoundError
 from app.core.exceptions.conflict import InvalidDeliveryStatusError
+from app.services.storage import save_payment_photo
 from app.schemas.route import (
     RouteResponse,
     RouteCustomerResponse,
@@ -68,7 +69,7 @@ class DriverRouteService:
             status=route.status,
             completed_count=route.completed_count,
             total_customers=len(customers),
-            customers=customers,
+            route_customers=customers,
         )
 
     async def update_delivery_status(
@@ -102,6 +103,7 @@ class DriverRouteService:
         route_customer_id: UUID,
         driver_id: UUID,
         data: CompleteDelivery,
+        payment_photo: UploadFile | None = None,
     ) -> None:
         rc = await self.route_repo.get_route_customer_for_driver(
             route_customer_id, driver_id
@@ -115,10 +117,13 @@ class DriverRouteService:
         now = datetime.now(tz=timezone.utc)
         customer = rc.customer
         price_settings = await self.price_repo.get_current()
+        photo_url = None
+        if payment_photo is not None:
+            photo_url = await save_payment_photo(payment_photo)
 
         rc.delivered_bottles = data.delivered_bottles
         rc.payment_amount = data.payment_amount
-        rc.payment_photo = data.payment_photo
+        rc.payment_photo = photo_url
         rc.completed_at = now
         rc.status = (
             DeliveryStatus.PAID
@@ -138,7 +143,7 @@ class DriverRouteService:
                 customer_id=customer.id,
                 route_customer_id=rc.id,
                 amount=data.payment_amount,
-                photo_url=data.payment_photo,
+                photo_url=photo_url,
             )
             self.session.add(payment)
 
