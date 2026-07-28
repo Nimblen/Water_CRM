@@ -1,5 +1,4 @@
 from uuid import UUID
-from app.services.storage import save_payment_photo
 from fastapi import APIRouter, File, UploadFile
 from app.dependencies.driver import CurrentDriverIdDep, DriverRouteServiceDep
 from app.schemas.route import RouteResponse, RouteListItem, UpdateDeliveryStatus, CompleteDelivery

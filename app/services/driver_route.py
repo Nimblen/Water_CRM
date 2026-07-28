@@ -120,29 +120,30 @@ class DriverRouteService:
         photo_url = None
         if payment_photo is not None:
             photo_url = await save_payment_photo(payment_photo)
-
-        rc.delivered_bottles = data.delivered_bottles
-        rc.payment_amount = data.payment_amount
+        delivered_count = data.delivered_bottles or 0
+        payment_amount = data.payment_amount if data.payment_amount is not None else Decimal("0")
+        if data.bottle_balance is not None:
+            rc.delivered_bottles = delivered_count
+        rc.payment_amount = payment_amount
         rc.payment_photo = photo_url
         rc.completed_at = now
         rc.status = (
             DeliveryStatus.PAID
-            if data.payment_amount > 0
+            if payment_amount > 0
             else DeliveryStatus.DELIVERED
         )
-
-        order_cost = data.delivered_bottles * price_settings.water_price
-        net = customer.prepayment - customer.debt + data.payment_amount - order_cost
+        order_cost = delivered_count * price_settings.water_price
+        net = customer.prepayment - customer.debt + payment_amount - order_cost
         customer.bottle_balance = data.bottle_balance
         customer.debt = max(-net, 0)
         customer.prepayment = max(net, 0)
         customer.last_order_date = now
 
-        if data.payment_amount > 0:
+        if payment_amount > 0:
             payment = Payment(
                 customer_id=customer.id,
                 route_customer_id=rc.id,
-                amount=data.payment_amount,
+                amount=payment_amount,
                 photo_url=photo_url,
             )
             self.session.add(payment)
