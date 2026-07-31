@@ -57,6 +57,7 @@ class AuthService:
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
+            "role": user.role
         }
 
     async def refresh(
@@ -83,4 +84,5 @@ class AuthService:
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
+            "role": user.role
         }

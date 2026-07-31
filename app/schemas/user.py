@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, ConfigDict, Field
 
-
+from app.core.constants import UserRole
 
 class CreateDriver(BaseModel):
     phone: str
@@ -37,3 +37,12 @@ class UpdateDriver(BaseModel):
     phone: str | None = Field(default=None)
 
     model_config = ConfigDict(extra="ignore")
+
+class UserResponse(BaseModel):
+    id: UUID
+    phone: str
+    role: UserRole
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
