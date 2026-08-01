@@ -9,7 +9,6 @@ from app.schemas.common import (
     PaginatedResponse,
     build_paginated_response,
 )
-from app.core.security import hash_password
 from app.core.exceptions.conflict import (
     PhoneAlreadyExistsError,
     UserAlreadyInactiveError,
@@ -38,7 +37,6 @@ class DriverService:
 
         user = User(
             phone=data.phone,
-            hashed_password=hash_password(data.password),
             role=UserRole.DRIVER,
         )
         await self.user_repo.create(user)

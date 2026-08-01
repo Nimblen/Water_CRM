@@ -6,7 +6,6 @@ from app.core.constants import UserRole
 
 class CreateDriver(BaseModel):
     phone: str
-    password: str
     email: EmailStr
     full_name: str
 
@@ -46,3 +45,13 @@ class UserResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SetPassword(BaseModel):
+    phone: str
+    password: str
+
+
+class ChangePassword(BaseModel):
+    old_password: str
+    new_password: str

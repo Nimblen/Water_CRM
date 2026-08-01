@@ -1,43 +1,48 @@
 from .base import AppException
 
 
-class InvalidCredentialsError(AppException):
+
+class AuthenticationError(AppException):
     status_code = 401
+    code = "AUTHENTICATION_ERROR"
+    message = "Authentication error"
+
+
+class InvalidCredentialsError(AuthenticationError):
     code = "INVALID_CREDENTIALS"
     message = "Invalid phone or password"
 
 
-class UnauthorizedError(AppException):
-    status_code = 401
+class UnauthorizedError(AuthenticationError):
     code = "UNAUTHORIZED"
     message = "Authentication required"
 
 
-class InvalidTokenError(AppException):
-    status_code = 401
+class InvalidTokenError(AuthenticationError):
     code = "INVALID_TOKEN"
     message = "Invalid token"
 
 
-class TokenExpiredError(AppException):
-    status_code = 401
+class TokenExpiredError(AuthenticationError):
     code = "TOKEN_EXPIRED"
     message = "Token expired"
 
 
-class RefreshTokenExpiredError(AppException):
-    status_code = 401
+class RefreshTokenExpiredError(AuthenticationError):
     code = "REFRESH_TOKEN_EXPIRED"
     message = "Refresh token expired"
 
 
-class RefreshTokenRevokedError(AppException):
-    status_code = 401
+class RefreshTokenRevokedError(AuthenticationError):
     code = "REFRESH_TOKEN_REVOKED"
     message = "Refresh token revoked"
 
 
-class TokenTypeError(AppException):
-    status_code = 401
+class TokenTypeError(AuthenticationError):
     code = "INVALID_TOKEN_TYPE"
     message = "Invalid token type"
+
+
+class PasswordIncorrectError(AuthenticationError):
+    code = "PASSWORD_INCORRECT"
+    message = "Password incorrect"

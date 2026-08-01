@@ -1,11 +1,13 @@
 from uuid import UUID
+from app.db.models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.user import UserRepository
-from app.core.exceptions.auth import InvalidCredentialsError, TokenTypeError
+from app.core.exceptions.auth import InvalidCredentialsError, TokenTypeError, PasswordIncorrectError
 from app.core.exceptions.not_found import UserNotFoundError
 from app.core.exceptions.permissions import AccessDeniedError
-from app.core.security import create_access_token, create_refresh_token, verify_password, verify_token
+from app.core.exceptions.conflict import PasswordNotSetError
+from app.core.security import create_access_token, create_refresh_token, verify_password, verify_token, hash_password
 
 
 class AuthService:
@@ -34,6 +36,9 @@ class AuthService:
 
         if not user.is_active:
             raise AccessDeniedError()
+
+        if not user.hashed_password:
+            raise PasswordNotSetError()
 
         if not verify_password(
             password,
@@ -86,3 +91,30 @@ class AuthService:
             "token_type": "bearer",
             "role": user.role
         }
+    
+
+    async def set_password(
+        self,
+        phone: str,
+        password: str,
+    ):
+        user = await self.user_repo.get_by_phone(phone)
+        if not user:
+            raise UserNotFoundError()
+        if user.hashed_password:
+            raise AccessDeniedError()
+        user.hashed_password = hash_password(password)
+
+
+
+    async def change_password(
+        self,
+        user: User,
+        old_password: str,
+        new_password: str,
+    ):
+        if not user.hashed_password:
+            raise PasswordNotSetError()
+        if not verify_password(old_password, user.hashed_password):
+            raise PasswordIncorrectError()
+        user.hashed_password = hash_password(new_password)

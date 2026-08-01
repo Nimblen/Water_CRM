@@ -55,3 +55,8 @@ class CustomerAlreadyInactiveError(ConflictError):
 class CustomerAlreadyActiveError(ConflictError):
     code = "CUSTOMER_ALREADY_ACTIVE"
     message = "Customer already active"
+
+
+class PasswordNotSetError(ConflictError):
+    code = "PASSWORD_NOT_SET"
+    message = "Password not set"
