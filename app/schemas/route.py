@@ -1,6 +1,8 @@
+from typing import Annotated
 from uuid import UUID
 from datetime import date as date_type, datetime
 from decimal import Decimal
+from fastapi import Form
 from pydantic import BaseModel, Field, field_validator
 from app.core.constants import DeliveryStatus, RouteStatus
 
@@ -24,11 +26,22 @@ class UpdateDeliveryStatus(BaseModel):
 
 
 class CompleteDelivery(BaseModel):
-    delivered_bottles: int = Field(ge=0)
-    payment_amount: Decimal = Field(ge=0, max_digits=12, decimal_places=2)
-    bottle_balance: int | None = Field(default=None, ge=0)
+    delivered_bottles: int
+    payment_amount: Decimal
+    bottle_balance: int | None = None
 
-
+    @classmethod
+    def as_form(
+        cls,
+        delivered_bottles: Annotated[int, Form()],
+        payment_amount: Annotated[Decimal, Form()],
+        bottle_balance: Annotated[int | None, Form()] = None,
+    ):
+        return cls(
+            delivered_bottles=delivered_bottles,
+            payment_amount=payment_amount,
+            bottle_balance=bottle_balance,
+        )
 class RouteCustomerResponse(BaseModel):
     id: UUID
     customer_id: UUID

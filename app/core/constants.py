@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, StrEnum
 
 
 class UserRole(str, Enum):
@@ -21,3 +21,11 @@ class DeliveryStatus(str, Enum):
     DELIVERED = "delivered"
     FAILED = "failed"
     PAID = "paid"
+
+
+
+
+class NotificationType(str, Enum):
+    DELIVERY_STATUS_UPDATED = "delivery_status_updated"
+    DELIVERY_COMPLETED = "delivery_completed"
+    ROUTE_COMPLETED = "route_completed"

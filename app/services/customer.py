@@ -1,6 +1,7 @@
 from uuid import UUID
 from app.db.models.customer import Customer
 from app.repositories.customer import CustomerRepository
+from app.repositories.idempotency import IdempotencyRepository
 from app.schemas.customer import (
     CreateCustomer,
     UpdateCustomer,
@@ -18,7 +19,9 @@ class CustomerService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.repo = CustomerRepository(session)
+        self.idempotency_repo = IdempotencyRepository(session)
 
+        
     async def create_customer(self, data: CreateCustomer) -> CustomerResponse:
         existing = await self.repo.get_by_phone(data.phone)
         if existing:

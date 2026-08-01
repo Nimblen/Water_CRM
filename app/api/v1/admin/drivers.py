@@ -82,5 +82,5 @@ async def update_driver(
     _: CurrentAdminDep,
     service: DriverServiceDep,
 ):
-    return await service.update_driver(dirver_id, driver_data)
+    return await service.update_driver(driver_id, driver_data)
     

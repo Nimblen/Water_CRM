@@ -1,5 +1,6 @@
+from typing import Annotated
 from uuid import UUID
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, UploadFile, Depends
 from app.dependencies.driver import CurrentDriverIdDep, DriverRouteServiceDep
 from app.schemas.route import RouteResponse, RouteListItem, UpdateDeliveryStatus, CompleteDelivery
 from app.dependencies.idempotency import IdempotencyKeyDep
@@ -36,7 +37,7 @@ async def update_delivery_status(
 @router.post("/routes/customers/{route_customer_id}/complete", status_code=204)
 async def complete_delivery(
     route_customer_id: UUID,
-    data: CompleteDelivery,
+    data: Annotated[CompleteDelivery, Depends(CompleteDelivery.as_form)],
     driver_id: CurrentDriverIdDep,
     service: DriverRouteServiceDep,
     idempotency_key: IdempotencyKeyDep,
