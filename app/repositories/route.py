@@ -14,7 +14,6 @@ class RouteRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-
     async def get_by_driver(self, driver_id: uuid.UUID) -> list[Route]:
         stmt = (
             select(Route)
@@ -30,7 +29,8 @@ class RouteRepository:
             select(Route)
             .where(Route.id == route_id, Route.driver_id == driver_id)
             .options(
-                selectinload(Route.route_customers).selectinload(RouteCustomer.customer)
+                selectinload(Route.route_customers).selectinload(RouteCustomer.customer),
+                selectinload(Route.route_customers).selectinload(RouteCustomer.payment),
             )
         )
         result = await self.session.execute(stmt)
@@ -83,6 +83,7 @@ class RouteRepository:
             .options(
                 selectinload(Route.driver),
                 selectinload(Route.route_customers).selectinload(RouteCustomer.customer),
+                selectinload(Route.route_customers).selectinload(RouteCustomer.payment),
             )
         )
         result = await self.session.execute(stmt)

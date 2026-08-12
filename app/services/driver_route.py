@@ -1,15 +1,18 @@
+from decimal import Decimal
 from uuid import UUID
 from datetime import datetime, timezone
+
 from app.repositories.idempotency import IdempotencyRepository
 from app.schemas.notification import NotificationEvent
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import UploadFile
+
 from app.repositories.route import RouteRepository
 from app.repositories.price_settings import PriceSettingsRepository
 from app.repositories.notification import NotificationRepository
 from app.db.models.payment import Payment
 from app.db.models.route import Route
-from app.core.constants import DeliveryStatus, NotificationType, RouteStatus
+from app.core.constants import DeliveryStatus, NotificationType, RouteStatus, PaymentMethod
 from app.core.exceptions.not_found import RouteNotFoundError, RouteCustomerNotFoundError
 from app.core.exceptions.conflict import InvalidDeliveryStatusError
 from app.services.storage import save_payment_photo
@@ -22,7 +25,6 @@ from app.schemas.route import (
 )
 
 TERMINAL_STATUSES = (DeliveryStatus.DELIVERED, DeliveryStatus.PAID, DeliveryStatus.FAILED)
-
 DRIVER_SETTABLE_STATUSES = (DeliveryStatus.ON_WAY, DeliveryStatus.FAILED)
 
 
@@ -61,8 +63,9 @@ class DriverRouteService:
                 customer_phone=rc.customer.phone,
                 status=rc.status,
                 delivered_bottles=rc.delivered_bottles,
-                payment_amount=rc.payment_amount,
-                payment_photo=rc.payment_photo,
+                payment_amount=rc.payment.amount if rc.payment else Decimal("0"),
+                payment_method=rc.payment_method,
+                payment_photo=rc.payment.photo_url if rc.payment else None,
                 completed_at=rc.completed_at,
             )
             for rc in route.route_customers
@@ -82,10 +85,8 @@ class DriverRouteService:
         route_customer_id: UUID,
         driver_id: UUID,
         data: UpdateDeliveryStatus,
-    ) -> None:
-        rc = await self.route_repo.get_route_customer_for_driver(
-            route_customer_id, driver_id
-        )
+    ) -> NotificationEvent:
+        rc = await self.route_repo.get_route_customer_for_driver(route_customer_id, driver_id)
         if not rc:
             raise RouteCustomerNotFoundError()
 
@@ -125,10 +126,8 @@ class DriverRouteService:
         driver_id: UUID,
         data: CompleteDelivery,
         payment_photo: UploadFile | None = None,
-    ) -> None:
-        rc = await self.route_repo.get_route_customer_for_driver(
-            route_customer_id, driver_id
-        )
+    ) -> NotificationEvent:
+        rc = await self.route_repo.get_route_customer_for_driver(route_customer_id, driver_id)
         if not rc:
             raise RouteCustomerNotFoundError()
 
@@ -141,18 +140,20 @@ class DriverRouteService:
         photo_url = None
         if payment_photo is not None:
             photo_url = await save_payment_photo(payment_photo)
+
         delivered_count = data.delivered_bottles or 0
         payment_amount = data.payment_amount if data.payment_amount is not None else Decimal("0")
+
         if data.bottle_balance is not None:
             rc.delivered_bottles = delivered_count
-        rc.payment_amount = payment_amount
-        rc.payment_photo = photo_url
+        rc.payment_method = data.payment_method
         rc.completed_at = now
         rc.status = (
-            DeliveryStatus.PAID
-            if payment_amount > 0
-            else DeliveryStatus.DELIVERED
+            DeliveryStatus.DELIVERED
+            if data.payment_method == PaymentMethod.DEBT
+            else DeliveryStatus.PAID
         )
+
         order_cost = delivered_count * price_settings.water_price
         net = customer.prepayment - customer.debt + payment_amount - order_cost
         customer.bottle_balance = data.bottle_balance
@@ -160,11 +161,12 @@ class DriverRouteService:
         customer.prepayment = max(net, 0)
         customer.last_order_date = now
 
-        if payment_amount > 0:
+        if data.payment_method != PaymentMethod.DEBT:
             payment = Payment(
                 customer_id=customer.id,
                 route_customer_id=rc.id,
                 amount=payment_amount,
+                payment_method=data.payment_method,
                 photo_url=photo_url,
             )
             self.session.add(payment)
@@ -185,6 +187,7 @@ class DriverRouteService:
                 "driver_id": str(driver_id),
                 "customer_name": customer.full_name,
                 "status": rc.status.value,
+                "payment_method": data.payment_method.value,
                 "payment_amount": str(payment_amount),
                 "delivered_bottles": delivered_count,
             },

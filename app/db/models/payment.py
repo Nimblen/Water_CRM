@@ -1,4 +1,6 @@
+from sqlalchemy import Enum as SQLEnum
 import uuid
+from app.core.constants import PaymentMethod
 from sqlalchemy import ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from decimal import Decimal
@@ -29,7 +31,10 @@ class Payment(AbstractBase):
         String(500),
         nullable=True,
     )
-
+    payment_method: Mapped["PaymentMethod"] = mapped_column(
+        SQLEnum(PaymentMethod, name="payment_method"),
+        nullable=False,
+    )
     customer = relationship("Customer", back_populates="payments")
     route_customer = relationship(
         "RouteCustomer",

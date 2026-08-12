@@ -29,3 +29,10 @@ class NotificationType(str, Enum):
     DELIVERY_STATUS_UPDATED = "delivery_status_updated"
     DELIVERY_COMPLETED = "delivery_completed"
     ROUTE_COMPLETED = "route_completed"
+
+
+class PaymentMethod(str, Enum):
+    CASH = "cash"
+    CARD = "card"
+    TRANSFER = "transfer"
+    DEBT = "debt"

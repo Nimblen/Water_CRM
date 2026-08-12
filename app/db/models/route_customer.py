@@ -4,7 +4,7 @@ from decimal import Decimal
 from sqlalchemy import ForeignKey, Integer, Numeric, String, Enum, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import AbstractBase
-from app.core.constants import DeliveryStatus
+from app.core.constants import DeliveryStatus, PaymentMethod
 
 
 class RouteCustomer(AbstractBase):
@@ -32,14 +32,8 @@ class RouteCustomer(AbstractBase):
         Integer,
         nullable=True,
     )
-
-    payment_amount: Mapped[Decimal | None] = mapped_column(
-        Numeric(12, 2),
-        nullable=True,
-    )
-
-    payment_photo: Mapped[str | None] = mapped_column(
-        String(500),
+    payment_method: Mapped["PaymentMethod | None"] = mapped_column(
+        Enum(PaymentMethod, name="payment_method"),
         nullable=True,
     )
 

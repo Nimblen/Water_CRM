@@ -1,3 +1,4 @@
+from decimal import Decimal
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -143,8 +144,9 @@ class AdminRouteService:
                 customer_phone=rc.customer.phone,
                 status=rc.status,
                 delivered_bottles=rc.delivered_bottles,
-                payment_amount=rc.payment_amount,
-                payment_photo=rc.payment_photo,
+                payment_amount=rc.payment.amount if rc.payment else Decimal("0"),
+                payment_method=rc.payment_method,
+                payment_photo=rc.payment.photo_url if rc.payment else None,
                 completed_at=rc.completed_at,
             )
             for rc in route.route_customers

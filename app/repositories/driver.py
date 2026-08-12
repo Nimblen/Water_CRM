@@ -31,11 +31,13 @@ class DriverRepository:
 
             stmt = (
                 select(Driver)
+                .join(Driver.user)
                 .options(
                     joinedload(Driver.user)
                 )
                 .where(
-                    Driver.id == driver_id
+                    Driver.id == driver_id,
+                    User.is_active.is_(True)
                 )
             )
 
@@ -56,6 +58,7 @@ class DriverRepository:
                 selectinload(
                     Driver.user
                 )
+            .where(User.is_active.is_(True))
             )
         )
 
