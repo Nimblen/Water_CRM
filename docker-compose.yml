@@ -59,13 +59,23 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - uploads_data:/app/uploads:ro
+      - certbot-www:/var/www/certbot
+      - certbot-certs:/etc/letsencrypt
     depends_on:
       - app
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - certbot-www:/var/www/certbot
+      - certbot-certs:/etc/letsencrypt
 
 volumes:
   postgres_data:
   redis_data:
   uploads_data:
+  certbot-www:
+  certbot-certs:
