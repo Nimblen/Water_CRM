@@ -49,16 +49,6 @@ async def get_me(
     return user
 
 
-@router.post("/set-password", status_code=204)
-async def set_password(
-    data: SetPassword,
-    service: AuthDep
-):
-    return await service.set_password(
-        phone=data.phone,
-        password=data.password,
-    )
-
 
 @router.post("/change-password", status_code=204)
 async def change_password(

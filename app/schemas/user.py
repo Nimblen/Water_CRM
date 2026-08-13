@@ -1,12 +1,12 @@
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel, EmailStr, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.constants import UserRole
 
 class CreateDriver(BaseModel):
     phone: str
-    email: EmailStr
+    password: str
     full_name: str
 
 
@@ -14,7 +14,6 @@ class DriverResponse(BaseModel):
     id: UUID
     user_id: UUID
     phone: str
-    email: EmailStr
     full_name: str
     trip_count: int 
     today_trip_count: int
@@ -32,7 +31,6 @@ class DriverFilters(BaseModel):
 
 class UpdateDriver(BaseModel):
     full_name: str | None = Field(default=None)
-    email: EmailStr | None = Field(default=None)
     phone: str | None = Field(default=None)
 
     model_config = ConfigDict(extra="ignore")

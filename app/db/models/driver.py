@@ -22,11 +22,6 @@ class Driver(AbstractBase):
         nullable=False,
     )
 
-    email: Mapped[str | None] = mapped_column(
-        String(255),
-        nullable=True,
-    )
-
     trip_count: Mapped[int] = mapped_column(
         Integer,
         default=0,

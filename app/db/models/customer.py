@@ -66,6 +66,11 @@ class Customer(AbstractBase):
         default=True,
         nullable=False,
     )
+    has_cooler: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
 
     comment: Mapped[str | None] = mapped_column(
         Text,

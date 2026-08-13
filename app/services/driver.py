@@ -13,6 +13,7 @@ from app.core.exceptions.conflict import (
     PhoneAlreadyExistsError,
     UserAlreadyInactiveError,
 )
+from app.core.security import hash_password
 from app.core.exceptions.not_found import DriverNotFoundError
 from app.core.constants import UserRole
 from app.db.models.driver import Driver
@@ -21,7 +22,7 @@ from app.repositories.idempotency import IdempotencyRepository
 
 
 
-ALLOWED_DRIVER_UPDATE_FIELDS = {"full_name", "phone", "email"}
+ALLOWED_DRIVER_UPDATE_FIELDS = {"full_name", "phone"}
 
 
 class DriverService:
@@ -37,6 +38,7 @@ class DriverService:
 
         user = User(
             phone=data.phone,
+            hashed_password=hash_password(data.password),
             role=UserRole.DRIVER,
         )
         await self.user_repo.create(user)
@@ -45,7 +47,6 @@ class DriverService:
         driver = Driver(
             user_id=user.id,
             full_name=data.full_name,
-            email=data.email,
         )
         await self.driver_repo.create(driver)
         await self.session.flush()
@@ -104,7 +105,6 @@ class DriverService:
             id=driver.id,
             user_id=driver.user_id,
             phone=phone,
-            email=driver.email,
             full_name=driver.full_name,
             trip_count=driver.trip_count,
             today_trip_count=driver.today_trip_count,

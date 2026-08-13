@@ -68,7 +68,6 @@ class DriverRepository:
             stmt = stmt.where(
                 or_(
                     Driver.full_name.ilike(search),
-                    Driver.email.ilike(search),
                     User.phone.ilike(search),
                 )
             )

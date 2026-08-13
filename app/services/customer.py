@@ -32,6 +32,7 @@ class CustomerService:
             phone=data.phone,
             address=data.address,
             comment=data.comment,
+            has_cooler=data.has_cooler,
         )
         customer = await self.repo.create(customer)
         await self.session.flush()

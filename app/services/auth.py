@@ -93,19 +93,6 @@ class AuthService:
         }
     
 
-    async def set_password(
-        self,
-        phone: str,
-        password: str,
-    ):
-        user = await self.user_repo.get_by_phone(phone)
-        if not user:
-            raise UserNotFoundError()
-        if user.hashed_password:
-            raise AccessDeniedError()
-        user.hashed_password = hash_password(password)
-
-
 
     async def change_password(
         self,

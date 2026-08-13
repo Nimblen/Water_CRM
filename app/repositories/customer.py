@@ -24,6 +24,8 @@ class CustomerRepository:
             stmt = stmt.where(Customer.is_active == filters.is_active)
         if filters.has_debt is not None:
             stmt = stmt.where(Customer.debt > 0) if filters.has_debt else stmt.where(Customer.debt == 0)
+        if filters.has_cooler is not None:
+            stmt = stmt.where(Customer.has_cooler == filters.has_cooler)
         return stmt
 
     async def create(self, customer: Customer) -> Customer:
