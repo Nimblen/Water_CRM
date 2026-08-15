@@ -25,3 +25,11 @@ class DriverReportItem(BaseModel):
     total_revenue: Decimal
 
     model_config = {"from_attributes": True}
+
+
+
+
+class ReportExportFilters(BaseModel):
+    date_from: date_type
+    date_to: date_type
+    driver_id: UUID | None = None

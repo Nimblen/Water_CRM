@@ -1,9 +1,12 @@
+from io import BytesIO
+from app.core.exceptions.not_found import DriverNotFoundError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.report import ReportRepository
 from app.repositories.driver import DriverRepository
 from app.core.constants import DeliveryStatus
-from app.schemas.report import ReportPeriod, SummaryReport, DriverReportItem
+from app.schemas.report import ReportExportFilters, ReportPeriod, SummaryReport, DriverReportItem
+from app.services.export import build_deliveries_export
 
 
 class AdminReportService:
@@ -45,3 +48,23 @@ class AdminReportService:
                 total_revenue=row["total_revenue"],
             ))
         return sorted(items, key=lambda x: x.total_revenue, reverse=True)
+    
+
+    async def export_deliveries(self, filters: ReportExportFilters) -> BytesIO:
+        if filters.driver_id:
+            driver = await self.driver_repo.get_by_id(filters.driver_id)
+            if not driver:
+                raise DriverNotFoundError()
+
+        deliveries = await self.repo.get_deliveries_for_export(filters)
+
+        rows = [
+            {
+                "address": rc.customer.address,
+                "quantity": rc.delivered_bottles or 0,
+                "amount": rc.payment.amount or 0,
+                "phone": rc.customer.phone,
+            }
+            for rc in deliveries
+        ]
+        return build_deliveries_export(rows)

@@ -1,13 +1,14 @@
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from decimal import Decimal
 from app.db.models.route import Route
 from app.db.models.route_customer import RouteCustomer
 from app.db.models.payment import Payment
 from app.db.models.customer import Customer
 from app.db.models.driver import Driver
 from app.core.constants import DeliveryStatus
-from app.schemas.report import ReportPeriod
+from app.schemas.report import ReportExportFilters, ReportPeriod
 
 
 class ReportRepository:
@@ -93,3 +94,28 @@ class ReportRepository:
                 "total_revenue": d.total_revenue if d else 0,
             })
         return report
+    
+    async def get_deliveries_for_export(self, filters: ReportExportFilters) -> list[RouteCustomer]:
+        stmt = (
+            select(RouteCustomer)
+            .where(
+                RouteCustomer.status == DeliveryStatus.DELIVERED,
+                RouteCustomer.completed_at.isnot(None),
+                func.date(RouteCustomer.completed_at) >= filters.date_from,
+                func.date(RouteCustomer.completed_at) <= filters.date_to,
+            )
+            .options(
+                selectinload(RouteCustomer.customer),
+                selectinload(RouteCustomer.route),
+                selectinload(RouteCustomer.payment),
+            )
+            .order_by(RouteCustomer.completed_at)
+        )
+        if filters.driver_id:
+                stmt = stmt.join(Route, RouteCustomer.route_id == Route.id).where(
+                    Route.driver_id == filters.driver_id
+                )
+
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+    
