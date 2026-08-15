@@ -2,7 +2,6 @@ from fastapi import APIRouter, Request, Header, Query
 from sse_starlette.sse import EventSourceResponse
 
 from app.dependencies.user import CurrentAdminDep
-from app.dependencies.session import SessionDep
 from app.dependencies.notification import NotificationServiceDep
 
 router = APIRouter(prefix="/admin/notifications", tags=["admin-notifications"])
@@ -12,7 +11,6 @@ router = APIRouter(prefix="/admin/notifications", tags=["admin-notifications"])
 async def stream_notifications(
     request: Request,
     admin: CurrentAdminDep,
-    session: SessionDep,
     service: NotificationServiceDep,
     last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
     since: int = Query(default=0),
@@ -20,7 +18,7 @@ async def stream_notifications(
     last_id = int(last_event_id) if last_event_id else since
 
     async def event_generator():
-        async for event in service.event_source(session, last_id):
+        async for event in service.event_source(last_id):
             if await request.is_disconnected():
                 return
             yield {
@@ -32,8 +30,5 @@ async def stream_notifications(
     return EventSourceResponse(
         event_generator(),
         ping=15,
-        headers={
-            "X-Accel-Buffering": "no",
-            "Cache-Control": "no-cache",
-        },
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
     )

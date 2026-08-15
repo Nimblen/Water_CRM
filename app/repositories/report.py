@@ -64,12 +64,13 @@ class ReportRepository:
             select(
                 Driver.id.label("driver_id"),
                 func.count(RouteCustomer.id).label("completed_deliveries_count"),
-                func.coalesce(func.sum(RouteCustomer.payment_amount), 0).label("total_revenue"),
+                func.coalesce(func.sum(Payment.amount), 0).label("total_revenue"),
             )
             .join(Route, Route.driver_id == Driver.id)
             .join(RouteCustomer, RouteCustomer.route_id == Route.id)
+            .join(Payment, Payment.route_customer_id == RouteCustomer.id)
             .where(
-                RouteCustomer.status.in_([DeliveryStatus.DELIVERED, DeliveryStatus.PAID]),
+                RouteCustomer.status == DeliveryStatus.DELIVERED,
                 RouteCustomer.completed_at.isnot(None),
                 func.date(RouteCustomer.completed_at) >= period.date_from,
                 func.date(RouteCustomer.completed_at) <= period.date_to,

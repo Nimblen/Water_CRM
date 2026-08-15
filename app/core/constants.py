@@ -20,7 +20,6 @@ class DeliveryStatus(str, Enum):
     ON_WAY = "on_way"
     DELIVERED = "delivered"
     FAILED = "failed"
-    PAID = "paid"
 
 
 

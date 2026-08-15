@@ -15,14 +15,13 @@ class AdminReportService:
     async def get_summary(self, period: ReportPeriod) -> SummaryReport:
         routes_count = await self.repo.count_routes(period)
         completed = await self.repo.count_deliveries_by_status(period, DeliveryStatus.DELIVERED)
-        paid = await self.repo.count_deliveries_by_status(period, DeliveryStatus.PAID)
         failed = await self.repo.count_deliveries_by_status(period, DeliveryStatus.FAILED)
         revenue = await self.repo.sum_revenue(period)
         debt = await self.repo.sum_total_debt()
 
         return SummaryReport(
             routes_count=routes_count,
-            completed_deliveries_count=completed + paid,
+            completed_deliveries_count=completed,
             failed_deliveries_count=failed,
             total_revenue=revenue,
             total_debt=debt,

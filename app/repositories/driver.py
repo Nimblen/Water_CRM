@@ -58,8 +58,8 @@ class DriverRepository:
                 selectinload(
                     Driver.user
                 )
-            .where(User.is_active.is_(True))
             )
+            .where(User.is_active.is_(True))
         )
 
         if filters.search:

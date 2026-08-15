@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +17,7 @@ from app.schemas.route import (
 from app.schemas.common import PaginationParams, PaginatedResponse, build_paginated_response
 from app.repositories.idempotency import IdempotencyRepository
 
-ALLOWED_ROUTE_UPDATE_FIELDS = {"date"}
+
 
 
 class AdminRouteService:
@@ -31,8 +32,19 @@ class AdminRouteService:
         driver = await self.driver_repo.get_by_id(data.driver_id)
         if not driver:
             raise DriverNotFoundError()
+        today = date.today()
+        if data.date < today:
+            raise InvalidUpdateFieldsError(
+                "Дата маршрута не может быть в прошлом"
+            )
 
-        route = await self.repo.create(data.driver_id, data.date)
+        status = (
+            RouteStatus.IN_PROGRESS
+            if data.date == today
+            else RouteStatus.CREATED
+        )
+        route = await self.repo.create(data.driver_id, data.date, status)
+        # TODO: Оптимизировать n + 1 запросы
         for customer_id in data.customer_ids:
             customer = await self.customer_repo.get_by_id(customer_id)
             if not customer or not customer.is_active:
@@ -73,10 +85,6 @@ class AdminRouteService:
             raise RouteNotFoundError()
 
         update_data = data.model_dump(exclude_unset=True)
-        disallowed = set(update_data) - ALLOWED_ROUTE_UPDATE_FIELDS
-        if disallowed:
-            raise InvalidUpdateFieldsError(disallowed)
-
         for field, value in update_data.items():
             setattr(route, field, value)
 

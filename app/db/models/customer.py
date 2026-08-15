@@ -70,6 +70,7 @@ class Customer(AbstractBase):
         Boolean,
         default=False,
         nullable=False,
+        server_default="false",
     )
 
     comment: Mapped[str | None] = mapped_column(

@@ -20,7 +20,7 @@ class UpdateDeliveryStatus(BaseModel):
             raise ValueError(
                 f"Статус {v} нельзя выставить напрямую. "
                 f"Разрешено: {[s.value for s in ALLOWED_MANUAL_STATUSES]}. "
-                f"Для DELIVERED/PAID используйте /complete."
+                f"Для DELIVERED используйте /complete."
             )
         return v
 
@@ -98,10 +98,21 @@ class CreateRoute(BaseModel):
     date: date_type
     customer_ids: list[UUID] = Field(default_factory=list)
 
+    model_config = {"extra": "ignore"}
+
+    @field_validator("date")
+    @classmethod
+    def validate_date(cls, v: date_type) -> date_type:
+        if v < datetime.now().date():
+            raise ValueError("Дата не может быть в прошлом")
+        return v
+
 
 class UpdateRoute(BaseModel):
     date: date_type | None = None
     status: RouteStatus | None = None
+
+    model_config = {"extra": "ignore"}
 
 
 class RouteFilters(BaseModel):

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from app.repositories.idempotency import IdempotencyRepository
 from app.schemas.notification import NotificationEvent
+from app.services.notification import NotificationService
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import UploadFile
 
@@ -24,16 +25,16 @@ from app.schemas.route import (
     CompleteDelivery,
 )
 
-TERMINAL_STATUSES = (DeliveryStatus.DELIVERED, DeliveryStatus.PAID, DeliveryStatus.FAILED)
+TERMINAL_STATUSES = (DeliveryStatus.DELIVERED, DeliveryStatus.FAILED)
 DRIVER_SETTABLE_STATUSES = (DeliveryStatus.ON_WAY, DeliveryStatus.FAILED)
 
 
 class DriverRouteService:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, notifications: NotificationService):
         self.session = session
         self.route_repo = RouteRepository(session)
         self.price_repo = PriceSettingsRepository(session)
-        self.notification_repo = NotificationRepository(session)
+        self.notifications = notifications
         self.idempotency_repo = IdempotencyRepository(session)
 
     async def get_my_routes(self, driver_id: UUID) -> list[RouteListItem]:
@@ -96,15 +97,17 @@ class DriverRouteService:
 
         if data.status not in DRIVER_SETTABLE_STATUSES:
             raise InvalidDeliveryStatusError()
-
+        if rc.status == data.status:
+            raise InvalidDeliveryStatusError()
         rc.status = data.status
 
         if data.status == DeliveryStatus.FAILED:
             rc.completed_at = datetime.now(tz=timezone.utc)
             await self._finalize_route_if_needed(rc.route)
-
-        row = await self.notification_repo.add(
-            NotificationType.DELIVERY_STATUS_UPDATED.value,
+        await self.session.flush()
+        await self.notifications.broadcast(
+            self.session,
+            NotificationType.DELIVERY_STATUS_UPDATED,
             {
                 "route_id": str(rc.route_id),
                 "route_customer_id": str(rc.id),
@@ -112,13 +115,6 @@ class DriverRouteService:
                 "customer_name": rc.customer.full_name,
                 "status": data.status.value,
             },
-        )
-        await self.session.flush()
-        return NotificationEvent(
-            id=row.id,
-            type=NotificationType.DELIVERY_STATUS_UPDATED,
-            payload=row.payload,
-            created_at=row.created_at,
         )
 
     async def complete_delivery(
@@ -149,11 +145,7 @@ class DriverRouteService:
             rc.delivered_bottles = delivered_count
         rc.payment_method = data.payment_method
         rc.completed_at = now
-        rc.status = (
-            DeliveryStatus.DELIVERED
-            if data.payment_method == PaymentMethod.DEBT
-            else DeliveryStatus.PAID
-        )
+        rc.status = DeliveryStatus.DELIVERED
 
         order_cost = delivered_count * price_settings.water_price
         net = customer.prepayment - customer.debt + payment_amount - order_cost
@@ -179,9 +171,10 @@ class DriverRouteService:
         driver.trip_count += 1
         driver.today_trip_count += 1
 
-        await self._finalize_route_if_needed(route)
-        row = await self.notification_repo.add(
-            NotificationType.DELIVERY_COMPLETED.value,
+        route_status = await self._finalize_route_if_needed(route)
+        await self.notifications.broadcast(
+            self.session,
+            NotificationType.DELIVERY_COMPLETED,
             {
                 "route_id": str(route.id),
                 "route_customer_id": str(rc.id),
@@ -193,13 +186,18 @@ class DriverRouteService:
                 "delivered_bottles": delivered_count,
             },
         )
+        if route_status == RouteStatus.COMPLETED:
+            await self.notifications.broadcast(
+                self.session,
+                NotificationType.ROUTE_COMPLETED,
+                {
+                    "route_id": str(route.id),
+                    "driver_id": str(driver_id),
+                },
+            )
         await self.session.flush()
-        return NotificationEvent(
-            id=row.id,
-            type=NotificationType.DELIVERY_COMPLETED,
-            payload=row.payload,
-            created_at=row.created_at,
-        )
+
+
 
     async def _finalize_route_if_needed(self, route: Route) -> None:
         if route.status == RouteStatus.CANCELLED:
@@ -207,3 +205,4 @@ class DriverRouteService:
         unresolved = await self.route_repo.count_unresolved(route.id)
         if unresolved == 0:
             route.status = RouteStatus.COMPLETED
+        return route.status

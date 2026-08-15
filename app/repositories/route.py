@@ -70,8 +70,8 @@ class RouteRepository:
             stmt = stmt.where(Route.date <= filters.date_to)
         return stmt
 
-    async def create(self, driver_id: uuid.UUID, date_) -> Route:
-        route = Route(driver_id=driver_id, date=date_, status=RouteStatus.CREATED)
+    async def create(self, driver_id: uuid.UUID, date_, status: RouteStatus = RouteStatus.CREATED) -> Route:
+        route = Route(driver_id=driver_id, date=date_, status=status)
         self.session.add(route)
         await self.session.flush()
         return route
