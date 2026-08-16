@@ -4,13 +4,12 @@ from datetime import datetime, timezone
 
 from app.repositories.idempotency import IdempotencyRepository
 from app.schemas.notification import NotificationEvent
-from app.services.notification import NotificationService
+from app.services.notification import AdminNotificationService
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import UploadFile
 
 from app.repositories.route import RouteRepository
 from app.repositories.price_settings import PriceSettingsRepository
-from app.repositories.notification import NotificationRepository
 from app.db.models.payment import Payment
 from app.db.models.route import Route
 from app.core.constants import DeliveryStatus, NotificationType, RouteStatus, PaymentMethod
@@ -27,10 +26,10 @@ from app.schemas.route import (
 
 TERMINAL_STATUSES = (DeliveryStatus.DELIVERED, DeliveryStatus.FAILED)
 DRIVER_SETTABLE_STATUSES = (DeliveryStatus.ON_WAY, DeliveryStatus.FAILED)
-
+DRIVER_VISIBLE_STATUSES = (RouteStatus.IN_PROGRESS,)
 
 class DriverRouteService:
-    def __init__(self, session: AsyncSession, notifications: NotificationService):
+    def __init__(self, session: AsyncSession, notifications: AdminNotificationService):
         self.session = session
         self.route_repo = RouteRepository(session)
         self.price_repo = PriceSettingsRepository(session)
@@ -38,7 +37,7 @@ class DriverRouteService:
         self.idempotency_repo = IdempotencyRepository(session)
 
     async def get_my_routes(self, driver_id: UUID) -> list[RouteListItem]:
-        routes = await self.route_repo.get_by_driver(driver_id)
+        routes = await self.route_repo.get_by_driver(driver_id, DRIVER_VISIBLE_STATUSES)
         return [
             RouteListItem(
                 id=r.id,
@@ -51,7 +50,7 @@ class DriverRouteService:
         ]
 
     async def get_route_detail(self, route_id: UUID, driver_id: UUID) -> RouteResponse:
-        route = await self.route_repo.get_by_id_for_driver(route_id, driver_id)
+        route = await self.route_repo.get_by_id_for_driver(route_id, driver_id, DRIVER_VISIBLE_STATUSES)
         if not route:
             raise RouteNotFoundError()
 

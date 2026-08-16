@@ -10,6 +10,7 @@ from app.api.v1.admin.price import router as admin_price
 from app.api.v1.admin.routes import router as admin_routes
 from app.api.v1.admin.reports import router as admin_reports
 from app.api.v1.admin.notification import router as admin_notification
+from app.api.v1.notifications import router as driver_notification
 from app.middlewares.logging_middleware import logging_middleware
 from app.core.exceptions.handlers import register_exception_handlers
 from app.core.config import get_settings
@@ -50,3 +51,4 @@ app.include_router(admin_price)
 app.include_router(admin_routes)
 app.include_router(admin_reports)
 app.include_router(admin_notification)
+app.include_router(driver_notification)

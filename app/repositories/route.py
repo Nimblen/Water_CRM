@@ -14,17 +14,19 @@ class RouteRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_by_driver(self, driver_id: uuid.UUID) -> list[Route]:
+    async def get_by_driver(self, driver_id: uuid.UUID, statuses: list[RouteStatus] | None = None) -> list[Route]:
         stmt = (
             select(Route)
             .where(Route.driver_id == driver_id)
             .options(selectinload(Route.route_customers))
             .order_by(Route.date.desc())
         )
+        if statuses:
+            stmt = stmt.where(Route.status.in_(statuses))
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_by_id_for_driver(self, route_id: uuid.UUID, driver_id: uuid.UUID) -> Route | None:
+    async def get_by_id_for_driver(self, route_id: uuid.UUID, driver_id: uuid.UUID, statuses: list[RouteStatus] | None = None) -> Route | None:
         stmt = (
             select(Route)
             .where(Route.id == route_id, Route.driver_id == driver_id)
@@ -33,6 +35,8 @@ class RouteRepository:
                 selectinload(Route.route_customers).selectinload(RouteCustomer.payment),
             )
         )
+        if statuses:
+            stmt = stmt.where(Route.status.in_(statuses))
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 

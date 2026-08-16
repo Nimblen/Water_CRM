@@ -1,6 +1,8 @@
 from datetime import date
 from decimal import Decimal
 from uuid import UUID
+from app.db.models.route import Route
+from app.services.notification import DriverNotificationService
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.route import RouteRepository
@@ -9,7 +11,7 @@ from app.repositories.customer import CustomerRepository
 from app.core.exceptions.not_found import RouteNotFoundError, DriverNotFoundError, CustomerNotFoundError, RouteCustomerNotFoundError
 from app.core.exceptions.conflict import RouteAlreadyStartedError, RouteAlreadyCompletedError
 from app.core.exceptions.validation import InvalidUpdateFieldsError
-from app.core.constants import RouteStatus
+from app.core.constants import NotificationType, RouteStatus
 from app.schemas.route import (
     CreateRoute, UpdateRoute, RouteFilters,
     AdminRouteResponse, AdminRouteListItem, RouteCustomerResponse,
@@ -21,12 +23,22 @@ from app.repositories.idempotency import IdempotencyRepository
 
 
 class AdminRouteService:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, driver_notifications: DriverNotificationService):
         self.session = session
         self.repo = RouteRepository(session)
         self.driver_repo = DriverRepository(session)
         self.customer_repo = CustomerRepository(session)
         self.idempotency_repo = IdempotencyRepository(session)
+        self.driver_notifications = driver_notifications
+
+    async def _notify_driver_if_in_progress(
+        self, route: Route, type_: NotificationType, payload: dict
+    ) -> None:
+        if route.status != RouteStatus.IN_PROGRESS:
+            return
+        await self.driver_notifications.broadcast(
+            self.session, route.driver_id, type_, payload
+        )
 
     async def create_route(self, data: CreateRoute) -> AdminRouteResponse:
         driver = await self.driver_repo.get_by_id(data.driver_id)
@@ -89,6 +101,11 @@ class AdminRouteService:
             setattr(route, field, value)
 
         await self.session.flush()
+        await self._notify_driver_if_in_progress(
+            route,
+            NotificationType.ROUTE_UPDATED,
+            {"route_id": str(route.id), "changed_fields": list(update_data.keys())},
+        )
         await self.session.refresh(route)
         return self._to_response(route)
 
@@ -112,6 +129,18 @@ class AdminRouteService:
         if not customer or not customer.is_active:
             raise CustomerNotFoundError()
         await self.repo.add_customer(route_id, customer_id)
+        await self.session.flush()
+        await self._notify_driver_if_in_progress(
+            route,
+            NotificationType.CUSTOMER_ADDED,
+            {
+                "route_id": str(route.id),
+                "customer_id": str(customer_id),
+                "customer_full_name": customer.full_name,
+                "customer_address": customer.address,
+            },
+        )
+
 
     async def remove_customer(self, route_id: UUID, customer_id: UUID) -> None:
         rc = await self.repo.get_route_customer(route_id, customer_id)
@@ -126,15 +155,27 @@ class AdminRouteService:
             route = await self.repo.get_by_id(route_id)
             route.status = RouteStatus.CANCELLED
             await self.session.flush()
-
+        await self._notify_driver_if_in_progress(
+            route,
+            NotificationType.CUSTOMER_REMOVED,
+            {"route_id": str(route_id), "customer_id": str(customer_id)},
+        )
     async def cancel_route(self, route_id: UUID) -> None:
         route = await self.repo.get_by_id(route_id)
         if not route:
             raise RouteNotFoundError()
         if route.status == RouteStatus.COMPLETED:
             raise RouteAlreadyCompletedError()
+        was_in_progress = route.status == RouteStatus.IN_PROGRESS
         route.status = RouteStatus.CANCELLED
         await self.session.flush()
+        if was_in_progress:
+            await self.driver_notifications.broadcast(
+                self.session,
+                route.driver_id,
+                NotificationType.ROUTE_CANCELLED,
+                {"route_id": str(route.id)},
+            )
 
     async def delete_route(self, route_id: UUID) -> None:
         route = await self.repo.get_by_id(route_id)
