@@ -16,3 +16,5 @@ passlib==1.7.4
 aiofiles==25.1.0
 sse-starlette==3.4.6
 openpyxl==3.1.5
+celery==5.6.3
+celery-beat==0.1.0

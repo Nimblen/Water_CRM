@@ -55,6 +55,35 @@ services:
     expose:
       - "8000"
 
+  celery_worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    command: celery -A app.core.celery_app:celery_app worker --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    command: celery -A app.core.celery_app:celery_app beat --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+
   nginx:
     image: nginx:1.29-alpine
     restart: unless-stopped
