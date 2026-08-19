@@ -1,5 +1,5 @@
 import asyncio
-from datetime import date, timedelta
+from datetime import date
 from zoneinfo import ZoneInfo
 from celery import shared_task
 from sqlalchemy import update
@@ -15,13 +15,12 @@ logger = get_logger("tasks.route_status")
 
 
 async def _rollover_route_statuses() -> dict[str, int]:
-    from app.db.session import async_session_factory
+    from app.db.session import async_session
     today = date.today() if BUSINESS_TZ is None else _today_in_tz(BUSINESS_TZ)
-    yesterday = today - timedelta(days=1)
-    async with async_session_factory() as session:
+    async with async_session() as session:
         cancelled_result = await session.execute(
             update(Route)
-            .where(Route.date == yesterday)
+            .where(Route.date < today)
             .where(Route.status.not_in(TERMINAL_STATUSES))
             .values(status=RouteStatus.CANCELLED)
         )
@@ -43,7 +42,7 @@ def _today_in_tz(tz: ZoneInfo) -> date:
     return datetime.now(tz).date()
 
 
-@shared_task(name="tasks.route.rollover_route_statuses", bind=True, max_retries=3)
+@shared_task(name="app.tasks.route.rollover_route_statuses", bind=True, max_retries=3)
 def rollover_route_statuses(self):
     try:
         result = asyncio.run(_rollover_route_statuses())

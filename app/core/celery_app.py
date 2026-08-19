@@ -1,4 +1,3 @@
-import os
 from celery import Celery
 from celery.schedules import crontab
 from app.core.config import get_settings
@@ -9,7 +8,9 @@ celery_app = Celery(
     "millwater",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
+    include=["app.tasks.route"],
 )
+
 celery_app.autodiscover_tasks(["app.tasks"])
 
 celery_app.conf.update(
@@ -27,7 +28,7 @@ celery_app.conf.update(
     },
     beat_schedule={
         "rollover-route-statuses-daily": {
-            "task": "app.tasks.rollover_route_statuses", 
+            "task": "app.tasks.route.rollover_route_statuses", 
             "schedule": crontab(hour=6, minute=0),
         },
     },
