@@ -66,6 +66,7 @@ class RouteCustomerResponse(BaseModel):
     payment_amount: Decimal | None
     payment_photo: str | None
     completed_at: datetime | None
+    order: int | None
 
     model_config = {"from_attributes": True}
 

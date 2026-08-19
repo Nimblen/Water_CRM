@@ -41,7 +41,10 @@ class RouteCustomer(AbstractBase):
         DateTime(timezone=True),
         nullable=True,
     )
-
+    order: Mapped[int] = mapped_column(
+        Integer,
+        nullable=True,
+    )
     route = relationship("Route", back_populates="route_customers")
     customer = relationship("Customer", back_populates="route_customers")
     payment = relationship(

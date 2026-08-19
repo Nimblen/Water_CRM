@@ -5,6 +5,7 @@ from app.dependencies.user import CurrentAdminDep
 from app.dependencies.route import AdminRouteServiceDep, RouteFiltersDep
 from app.dependencies.driver import PaginationDep
 from app.schemas.route import CreateRoute, UpdateRoute, AdminRouteResponse, AdminRouteListItem
+from app.schemas.customer import UpdateCustomerOrder
 from app.schemas.common import PaginatedResponse
 from app.dependencies.idempotency import IdempotencyKeyDep
 router = APIRouter(prefix="/admin/routes", tags=["admin:routes"])
@@ -37,6 +38,7 @@ async def update_route(route_id: UUID, data: UpdateRoute, _: CurrentAdminDep, se
     return await service.update_route(route_id, data)
 
 
+
 @router.delete("/{route_id}", status_code=204)
 async def delete_route(route_id: UUID, _: CurrentAdminDep, service: AdminRouteServiceDep):
     await service.delete_route(route_id)
@@ -51,6 +53,14 @@ async def cancel_route(route_id: UUID, _: CurrentAdminDep, service: AdminRouteSe
 async def assign_driver(route_id: UUID, driver_id: UUID, _: CurrentAdminDep, service: AdminRouteServiceDep):
     await service.assign_driver(route_id, driver_id)
 
+@router.patch("/{route_id}/customers/{customer_id}/order", status_code=204)
+async def update_customer_order(
+    route_id: UUID,
+    customer_id: UUID,
+    body: UpdateCustomerOrder,
+    service: AdminRouteServiceDep,
+):
+    await service.update_customer_order(route_id, customer_id, body.order)
 
 @router.post("/{route_id}/customers/{customer_id}", status_code=204)
 async def add_customer(route_id: UUID, customer_id: UUID, _: CurrentAdminDep, service: AdminRouteServiceDep):

@@ -57,11 +57,11 @@ class AdminRouteService:
         )
         route = await self.repo.create(data.driver_id, data.date, status)
         # TODO: Оптимизировать n + 1 запросы
-        for customer_id in data.customer_ids:
+        for index, customer_id in enumerate(data.customer_ids, start=1):
             customer = await self.customer_repo.get_by_id(customer_id)
             if not customer or not customer.is_active:
                 raise CustomerNotFoundError()
-            await self.repo.add_customer(route.id, customer_id)
+            await self.repo.add_customer(route.id, customer_id, order=index)
 
         await self.session.flush()
         route = await self.repo.get_by_id(route.id)
@@ -121,14 +121,14 @@ class AdminRouteService:
         route.driver_id = driver_id
         await self.session.flush()
 
-    async def add_customer(self, route_id: UUID, customer_id: UUID) -> None:
+    async def add_customer(self, route_id: UUID, customer_id: UUID, order: int | None = None) -> None:
         route = await self.repo.get_by_id(route_id)
         if not route:
             raise RouteNotFoundError()
         customer = await self.customer_repo.get_by_id(customer_id)
         if not customer or not customer.is_active:
             raise CustomerNotFoundError()
-        await self.repo.add_customer(route_id, customer_id)
+        await self.repo.add_customer(route_id, customer_id, order)
         await self.session.flush()
         await self._notify_driver_if_in_progress(
             route,
@@ -141,6 +141,13 @@ class AdminRouteService:
             },
         )
 
+    async def update_customer_order(self, route_id: UUID, customer_id: UUID, order: int) -> None:
+        #TODO: In the future добавить bulk update
+        rc = await self.repo.get_route_customer(route_id, customer_id)
+        if not rc:
+            raise RouteCustomerNotFoundError()
+        rc.order = order
+        await self.session.flush()
 
     async def remove_customer(self, route_id: UUID, customer_id: UUID) -> None:
         rc = await self.repo.get_route_customer(route_id, customer_id)

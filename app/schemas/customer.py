@@ -21,6 +21,10 @@ class UpdateCustomer(BaseModel):
     is_active: bool | None = None
 
 
+class UpdateCustomerOrder(BaseModel):
+    order: int
+
+
 class CustomerResponse(BaseModel):
     id: UUID
     full_name: str

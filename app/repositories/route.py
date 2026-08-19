@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import select, func
+from sqlalchemy import select, func, nulls_last
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +19,7 @@ class RouteRepository:
             select(Route)
             .where(Route.driver_id == driver_id)
             .options(selectinload(Route.route_customers))
-            .order_by(Route.date.desc())
+            .order_by(nulls_last(RouteCustomer.order.asc()))
         )
         if statuses:
             stmt = stmt.where(Route.status.in_(statuses))
@@ -113,8 +113,8 @@ class RouteRepository:
             result = await self.session.execute(stmt)
             return list(result.scalars().unique().all()), total
 
-    async def add_customer(self, route_id: uuid.UUID, customer_id: uuid.UUID) -> RouteCustomer:
-        rc = RouteCustomer(route_id=route_id, customer_id=customer_id, status=DeliveryStatus.PENDING)
+    async def add_customer(self, route_id: uuid.UUID, customer_id: uuid.UUID, order: int | None = None) -> RouteCustomer:
+        rc = RouteCustomer(route_id=route_id, customer_id=customer_id, status=DeliveryStatus.PENDING, order=order)
         self.session.add(rc)
         await self.session.flush()
         return rc
