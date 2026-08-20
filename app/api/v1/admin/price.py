@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.dependencies.user import CurrentAdminDep
+from app.dependencies.user import CurrentUserDep
 from app.dependencies.price import PriceServiceDep
 from app.schemas.price import PriceSettingsResponse, CreatePriceSettings
 from app.dependencies.idempotency import IdempotencyKeyDep
@@ -9,7 +10,7 @@ router = APIRouter(prefix="/admin/prices", tags=["admin:prices"])
 
 @router.get("/current", response_model=PriceSettingsResponse)
 async def get_current_price(
-    _: CurrentAdminDep,
+    _: CurrentUserDep,
     service: PriceServiceDep,
 ):
     return await service.get_current()
