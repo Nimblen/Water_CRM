@@ -204,6 +204,7 @@ class AdminRouteService:
                 payment_method=rc.payment_method,
                 payment_photo=rc.payment.photo_url if rc.payment else None,
                 completed_at=rc.completed_at,
+                order=rc.order,
             )
             for rc in route.route_customers
         ]
