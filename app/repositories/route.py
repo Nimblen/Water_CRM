@@ -18,8 +18,10 @@ class RouteRepository:
         stmt = (
             select(Route)
             .where(Route.driver_id == driver_id)
+            .join(RouteCustomer)
             .options(selectinload(Route.route_customers))
             .order_by(nulls_last(RouteCustomer.order.asc()))
+            .distinct()
         )
         if statuses:
             stmt = stmt.where(Route.status.in_(statuses))
