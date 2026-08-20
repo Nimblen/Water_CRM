@@ -21,12 +21,11 @@ class RouteRepository:
             .join(RouteCustomer)
             .options(selectinload(Route.route_customers))
             .order_by(nulls_last(RouteCustomer.order.asc()))
-            .distinct()
         )
         if statuses:
             stmt = stmt.where(Route.status.in_(statuses))
         result = await self.session.execute(stmt)
-        return list(result.scalars().all())
+        return list(result.scalars().unique().all())
 
     async def get_by_id_for_driver(self, route_id: uuid.UUID, driver_id: uuid.UUID, statuses: list[RouteStatus] | None = None) -> Route | None:
         stmt = (
