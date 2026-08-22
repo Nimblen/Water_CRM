@@ -141,15 +141,15 @@ class DriverRouteService:
         delivered_count = data.delivered_bottles or 0
         payment_amount = data.payment_amount if data.payment_amount is not None else Decimal("0")
 
-        if data.bottle_balance is not None:
-            rc.delivered_bottles = delivered_count
+        rc.delivered_bottles = delivered_count
         rc.payment_method = data.payment_method
         rc.completed_at = now
         rc.status = DeliveryStatus.DELIVERED
 
         order_cost = delivered_count * price_settings.water_price
         net = customer.prepayment - customer.debt + payment_amount - order_cost
-        customer.bottle_balance = data.bottle_balance
+        if data.bottle_balance is not None:
+            customer.bottle_balance = data.bottle_balance
         customer.debt = max(-net, 0)
         customer.prepayment = max(net, 0)
         customer.last_order_date = now

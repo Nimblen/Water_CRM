@@ -58,6 +58,7 @@ async def update_customer_order(
     route_id: UUID,
     customer_id: UUID,
     body: UpdateCustomerOrder,
+    _: CurrentAdminDep,
     service: AdminRouteServiceDep,
 ):
     await service.update_customer_order(route_id, customer_id, body.order)

@@ -150,23 +150,43 @@ class AdminRouteService:
         await self.session.flush()
 
     async def remove_customer(self, route_id: UUID, customer_id: UUID) -> None:
+        route = await self.repo.get_by_id(route_id)
+        if not route:
+            raise RouteNotFoundError()
+
         rc = await self.repo.get_route_customer(route_id, customer_id)
         if not rc:
             raise RouteCustomerNotFoundError()
+
+        was_in_progress = route.status == RouteStatus.IN_PROGRESS
 
         await self.repo.delete_route_customer(rc)
         await self.session.flush()
 
         remaining = await self.repo.count_customers(route_id)
-        if remaining == 0:
-            route = await self.repo.get_by_id(route_id)
+        cancelled = False
+        if remaining == 0 and route.status != RouteStatus.COMPLETED:
             route.status = RouteStatus.CANCELLED
+            cancelled = True
             await self.session.flush()
-        await self._notify_driver_if_in_progress(
-            route,
+
+        if not was_in_progress:
+            return
+
+        await self.driver_notifications.broadcast(
+            self.session,
+            route.driver_id,
             NotificationType.CUSTOMER_REMOVED,
             {"route_id": str(route_id), "customer_id": str(customer_id)},
         )
+        if cancelled:
+            await self.driver_notifications.broadcast(
+                self.session,
+                route.driver_id,
+                NotificationType.ROUTE_CANCELLED,
+                {"route_id": str(route_id)},
+            )
+
     async def cancel_route(self, route_id: UUID) -> None:
         route = await self.repo.get_by_id(route_id)
         if not route:
@@ -198,6 +218,7 @@ class AdminRouteService:
                 customer_full_name=rc.customer.full_name,
                 customer_address=rc.customer.address,
                 customer_phone=rc.customer.phone,
+                customer_has_cooler=rc.customer.has_cooler,
                 status=rc.status,
                 delivered_bottles=rc.delivered_bottles,
                 payment_amount=rc.payment.amount if rc.payment else Decimal("0"),
