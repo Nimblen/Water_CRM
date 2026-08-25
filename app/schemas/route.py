@@ -61,9 +61,11 @@ class RouteCustomerResponse(BaseModel):
     customer_full_name: str
     customer_address: str
     customer_phone: str
+    customer_has_cooler: bool = False
     status: DeliveryStatus
     delivered_bottles: int | None
     payment_amount: Decimal | None
+    payment_method: PaymentMethod | None = None
     payment_photo: str | None
     completed_at: datetime | None
     order: int | None

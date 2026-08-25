@@ -62,7 +62,7 @@ class AdminReportService:
             {
                 "address": rc.customer.address,
                 "quantity": rc.delivered_bottles or 0,
-                "amount": rc.payment.amount or 0,
+                "amount": rc.payment.amount if rc.payment else 0,
                 "phone": rc.customer.phone,
             }
             for rc in deliveries
