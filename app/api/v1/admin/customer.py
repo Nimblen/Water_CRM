@@ -13,11 +13,11 @@ router = APIRouter(prefix="/admin/customers", tags=["admin:customers"])
 @router.post("", response_model=CustomerResponse, status_code=201)
 async def create_customer(
     data: CreateCustomer,
-    _: CurrentAdminDep,
+    admin: CurrentAdminDep,
     service: CustomerServiceDep,
     idempotency_key: IdempotencyKeyDep,
 ):
-    customer = await service.create_customer(data)
+    customer = await service.create_customer(data, admin.id)
     if idempotency_key:
         await service.idempotency_repo.save(idempotency_key, endpoint="/admin/customers", status_code=201, response_body=customer.model_dump(mode="json"))
     return customer
@@ -45,10 +45,10 @@ async def get_customer(
 async def update_customer(
     customer_id: UUID,
     data: UpdateCustomer,
-    _: CurrentAdminDep,
+    admin: CurrentAdminDep,
     service: CustomerServiceDep,
 ):
-    return await service.update_customer(customer_id, data)
+    return await service.update_customer(customer_id, data, admin.id)
 
 
 @router.delete("/{customer_id}", status_code=204)

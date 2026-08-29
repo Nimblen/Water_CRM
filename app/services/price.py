@@ -15,5 +15,5 @@ class PriceService:
         return [PriceSettingsResponse.model_validate(p) for p in prices]
 
     async def set_price(self, data: CreatePriceSettings) -> PriceSettingsResponse:
-        price = await self.repo.create(data.water_price, data.deposit_price)
+        price = await self.repo.create(data.water_price, data.deposit_price, data.damaged_bottle_fine)
         return PriceSettingsResponse.model_validate(price)

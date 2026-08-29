@@ -22,6 +22,17 @@ class DeliveryStatus(str, Enum):
     DELIVERED = "delivered"
     FAILED = "failed"
 
+class OrderPurpose(str, Enum):
+    DELIVERY_19L = "delivery_19l"   # доставка капсул 19 л — поведение по умолчанию
+    PICKUP = "pickup"               # вывоз кулера и/или капсул заказчика
+    BULK_WATER = "bulk_water"       # опт 5 л / 10 л, цена договорная
+
+
+class ExpenseCategory(str, Enum):
+    FUEL = "fuel"
+    LUNCH = "lunch"
+    REPAIR = "repair"
+    OTHER = "other"
 
 
 

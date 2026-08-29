@@ -5,7 +5,7 @@ from app.dependencies.user import CurrentAdminDep
 from app.dependencies.route import AdminRouteServiceDep, RouteFiltersDep
 from app.dependencies.driver import PaginationDep
 from app.schemas.route import CreateRoute, UpdateRoute, AdminRouteResponse, AdminRouteListItem
-from app.schemas.customer import UpdateCustomerOrder
+from app.schemas.customer import UpdateCustomerSequence
 from app.schemas.common import PaginatedResponse
 from app.dependencies.idempotency import IdempotencyKeyDep
 router = APIRouter(prefix="/admin/routes", tags=["admin:routes"])
@@ -57,11 +57,11 @@ async def assign_driver(route_id: UUID, driver_id: UUID, _: CurrentAdminDep, ser
 async def update_customer_order(
     route_id: UUID,
     customer_id: UUID,
-    body: UpdateCustomerOrder,
+    body: UpdateCustomerSequence,
     _: CurrentAdminDep,
     service: AdminRouteServiceDep,
 ):
-    await service.update_customer_order(route_id, customer_id, body.order)
+    await service.update_customer_sequence(route_id, customer_id, body.order)
 
 @router.post("/{route_id}/customers/{customer_id}", status_code=204)
 async def add_customer(route_id: UUID, customer_id: UUID, _: CurrentAdminDep, service: AdminRouteServiceDep):

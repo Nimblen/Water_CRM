@@ -4,7 +4,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.route import Route
-from app.db.models.route_customer import RouteCustomer
+from app.db.models.order import  Order
 from app.core.constants import DeliveryStatus, RouteStatus
 from app.schemas.route import RouteFilters
 from app.schemas.common import PaginationParams
@@ -18,9 +18,9 @@ class RouteRepository:
         stmt = (
             select(Route)
             .where(Route.driver_id == driver_id)
-            .join(RouteCustomer)
-            .options(selectinload(Route.route_customers))
-            .order_by(nulls_last(RouteCustomer.order.asc()))
+            .join(Order)
+            .options(selectinload(Route.order))
+            .order_by(nulls_last(Order.sequence.asc()))
         )
         if statuses:
             stmt = stmt.where(Route.status.in_(statuses))
@@ -32,8 +32,8 @@ class RouteRepository:
             select(Route)
             .where(Route.id == route_id, Route.driver_id == driver_id)
             .options(
-                selectinload(Route.route_customers).selectinload(RouteCustomer.customer),
-                selectinload(Route.route_customers).selectinload(RouteCustomer.payment),
+                selectinload(Route.order).selectinload(Order.customer),
+                selectinload(Route.order).selectinload(Order.payment),
             )
         )
         if statuses:
@@ -42,24 +42,24 @@ class RouteRepository:
         return result.scalar_one_or_none()
 
     async def get_route_customer_for_driver(
-        self, route_customer_id: uuid.UUID, driver_id: uuid.UUID
-    ) -> RouteCustomer | None:
+        self, order_id: uuid.UUID, driver_id: uuid.UUID
+    ) -> Order | None:
         stmt = (
-            select(RouteCustomer)
+            select(Order)
             .join(Route)
-            .where(RouteCustomer.id == route_customer_id, Route.driver_id == driver_id)
+            .where(Order.id == order_id, Route.driver_id == driver_id)
             .options(
-                selectinload(RouteCustomer.customer),
-                selectinload(RouteCustomer.route),
+                selectinload(Order.customer),
+                selectinload(Order.route),
             )
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def count_unresolved(self, route_id: uuid.UUID) -> int:
-        stmt = select(func.count(RouteCustomer.id)).where(
-            RouteCustomer.route_id == route_id,
-            RouteCustomer.status.in_([DeliveryStatus.PENDING, DeliveryStatus.ON_WAY]),
+        stmt = select(func.count(Order.id)).where(
+            Order.route_id == route_id,
+            Order.status.in_([DeliveryStatus.PENDING, DeliveryStatus.ON_WAY]),
         )
         result = await self.session.execute(stmt)
         return result.scalar_one()
@@ -87,8 +87,8 @@ class RouteRepository:
             .where(Route.id == route_id)
             .options(
                 selectinload(Route.driver),
-                selectinload(Route.route_customers).selectinload(RouteCustomer.customer),
-                selectinload(Route.route_customers).selectinload(RouteCustomer.payment),
+                selectinload(Route.order).selectinload(Order.customer),
+                selectinload(Route.order).selectinload(Order.payment),
             )
         )
         result = await self.session.execute(stmt)
@@ -98,7 +98,7 @@ class RouteRepository:
             self, pagination: PaginationParams, filters: RouteFilters
         ) -> tuple[list[Route], int]:
             base_stmt = self._apply_filters(
-                select(Route).options(selectinload(Route.driver), selectinload(Route.route_customers)),
+                select(Route).options(selectinload(Route.driver), selectinload(Route.order)),
                 filters,
             )
 
@@ -114,16 +114,16 @@ class RouteRepository:
             result = await self.session.execute(stmt)
             return list(result.scalars().unique().all()), total
 
-    async def add_customer(self, route_id: uuid.UUID, customer_id: uuid.UUID, order: int | None = None) -> RouteCustomer:
-        rc = RouteCustomer(route_id=route_id, customer_id=customer_id, status=DeliveryStatus.PENDING, order=order)
+    async def add_customer(self, route_id: uuid.UUID, customer_id: uuid.UUID, sequence: int | None = None) -> Order:
+        rc = Order(route_id=route_id, customer_id=customer_id, status=DeliveryStatus.PENDING, sequence=sequence)
         self.session.add(rc)
         await self.session.flush()
         return rc
 
-    async def get_route_customer(self, route_id: uuid.UUID, customer_id: uuid.UUID) -> RouteCustomer | None:
-        stmt = select(RouteCustomer).where(
-            RouteCustomer.route_id == route_id,
-            RouteCustomer.customer_id == customer_id,
+    async def get_route_customer(self, route_id: uuid.UUID, customer_id: uuid.UUID) -> Order | None:
+        stmt = select(Order).where(
+            Order.route_id == route_id,
+            Order.customer_id == customer_id,
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
@@ -131,13 +131,13 @@ class RouteRepository:
     async def delete(self, route: Route) -> None:
         await self.session.delete(route)
 
-    async def delete_route_customer(self, rc: RouteCustomer) -> None:
+    async def delete_route_customer(self, rc: Order) -> None:
         await self.session.delete(rc)
 
     async def count_customers(self, route_id: uuid.UUID) -> int:
         result = await self.session.scalar(
             select(func.count())
-            .select_from(RouteCustomer)
-            .where(RouteCustomer.route_id == route_id)
+            .select_from(Order)
+            .where(Order.route_id == route_id)
         )
         return result or 0

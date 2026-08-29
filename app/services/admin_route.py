@@ -8,13 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.route import RouteRepository
 from app.repositories.driver import DriverRepository
 from app.repositories.customer import CustomerRepository
-from app.core.exceptions.not_found import RouteNotFoundError, DriverNotFoundError, CustomerNotFoundError, RouteCustomerNotFoundError
+from app.core.exceptions.not_found import RouteNotFoundError, DriverNotFoundError, CustomerNotFoundError, OrderNotFoundError
 from app.core.exceptions.conflict import RouteAlreadyStartedError, RouteAlreadyCompletedError
 from app.core.exceptions.validation import InvalidUpdateFieldsError
 from app.core.constants import NotificationType, RouteStatus
 from app.schemas.route import (
     CreateRoute, UpdateRoute, RouteFilters,
-    AdminRouteResponse, AdminRouteListItem, RouteCustomerResponse,
+    AdminRouteResponse, AdminRouteListItem, OrderResponse,
 )
 from app.schemas.common import PaginationParams, PaginatedResponse, build_paginated_response
 from app.repositories.idempotency import IdempotencyRepository
@@ -61,7 +61,7 @@ class AdminRouteService:
             customer = await self.customer_repo.get_by_id(customer_id)
             if not customer or not customer.is_active:
                 raise CustomerNotFoundError()
-            await self.repo.add_customer(route.id, customer_id, order=index)
+            await self.repo.add_customer(route.id, customer_id, sequence=index)
 
         await self.session.flush()
         route = await self.repo.get_by_id(route.id)
@@ -83,7 +83,7 @@ class AdminRouteService:
                 date=r.date,
                 status=r.status,
                 completed_count=r.completed_count,
-                total_customers=len(r.route_customers),
+                total_customers=len(r.orders),
                 driver_id=r.driver_id,
                 driver_full_name=r.driver.full_name,
             )
@@ -121,14 +121,14 @@ class AdminRouteService:
         route.driver_id = driver_id
         await self.session.flush()
 
-    async def add_customer(self, route_id: UUID, customer_id: UUID, order: int | None = None) -> None:
+    async def add_customer(self, route_id: UUID, customer_id: UUID, sequence: int | None = None) -> None:
         route = await self.repo.get_by_id(route_id)
         if not route:
             raise RouteNotFoundError()
         customer = await self.customer_repo.get_by_id(customer_id)
         if not customer or not customer.is_active:
             raise CustomerNotFoundError()
-        await self.repo.add_customer(route_id, customer_id, order)
+        await self.repo.add_customer(route_id, customer_id, sequence)
         await self.session.flush()
         await self._notify_driver_if_in_progress(
             route,
@@ -141,12 +141,12 @@ class AdminRouteService:
             },
         )
 
-    async def update_customer_order(self, route_id: UUID, customer_id: UUID, order: int) -> None:
+    async def update_customer_sequence(self, route_id: UUID, customer_id: UUID, sequence: int) -> None:
         #TODO: In the future добавить bulk update
         rc = await self.repo.get_route_customer(route_id, customer_id)
         if not rc:
-            raise RouteCustomerNotFoundError()
-        rc.order = order
+            raise OrderNotFoundError()
+        rc.sequence = sequence
         await self.session.flush()
 
     async def remove_customer(self, route_id: UUID, customer_id: UUID) -> None:
@@ -156,7 +156,7 @@ class AdminRouteService:
 
         rc = await self.repo.get_route_customer(route_id, customer_id)
         if not rc:
-            raise RouteCustomerNotFoundError()
+            raise OrderNotFoundError()
 
         was_in_progress = route.status == RouteStatus.IN_PROGRESS
 
@@ -212,22 +212,21 @@ class AdminRouteService:
 
     def _to_response(self, route) -> AdminRouteResponse:
         customers = [
-            RouteCustomerResponse(
+            OrderResponse(
                 id=rc.id,
                 customer_id=rc.customer_id,
                 customer_full_name=rc.customer.full_name,
                 customer_address=rc.customer.address,
                 customer_phone=rc.customer.phone,
-                customer_has_cooler=rc.customer.has_cooler,
                 status=rc.status,
                 delivered_bottles=rc.delivered_bottles,
                 payment_amount=rc.payment.amount if rc.payment else Decimal("0"),
                 payment_method=rc.payment_method,
                 payment_photo=rc.payment.photo_url if rc.payment else None,
                 completed_at=rc.completed_at,
-                order=rc.order,
+                sequence=rc.sequence,
             )
-            for rc in route.route_customers
+            for rc in route.orders
         ]
         return AdminRouteResponse(
             id=route.id,
@@ -235,7 +234,7 @@ class AdminRouteService:
             status=route.status,
             completed_count=route.completed_count,
             total_customers=len(customers),
-            route_customers=customers,
+            orders=customers,
             driver_id=route.driver_id,
             driver_full_name=route.driver.full_name,
         )

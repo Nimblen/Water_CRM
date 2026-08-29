@@ -32,8 +32,8 @@ class PriceSettingsRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def create(self, water_price, deposit_price) -> PriceSettings:
-        price = PriceSettings(water_price=water_price, deposit_price=deposit_price)
+    async def create(self, water_price, deposit_price, damaged_bottle_fine) -> PriceSettings:
+        price = PriceSettings(water_price=water_price, deposit_price=deposit_price, damaged_bottle_fine=damaged_bottle_fine)
         self.session.add(price)
         await self.session.flush()
         return price

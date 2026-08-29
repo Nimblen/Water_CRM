@@ -3,7 +3,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from decimal import Decimal
 from app.db.models.route import Route
-from app.db.models.route_customer import RouteCustomer
+from app.db.models.order import Order
 from app.db.models.payment import Payment
 from app.db.models.customer import Customer
 from app.db.models.driver import Driver
@@ -24,11 +24,11 @@ class ReportRepository:
         return result.scalar_one()
 
     async def count_deliveries_by_status(self, period: ReportPeriod, status: DeliveryStatus) -> int:
-        stmt = select(func.count(RouteCustomer.id)).where(
-            RouteCustomer.status == status,
-            RouteCustomer.completed_at.isnot(None),
-            func.date(RouteCustomer.completed_at) >= period.date_from,
-            func.date(RouteCustomer.completed_at) <= period.date_to,
+        stmt = select(func.count(Order.id)).where(
+            Order.status == status,
+            Order.completed_at.isnot(None),
+            func.date(Order.completed_at) >= period.date_from,
+            func.date(Order.completed_at) <= period.date_to,
         )
         result = await self.session.execute(stmt)
         return result.scalar_one()
@@ -64,17 +64,17 @@ class ReportRepository:
         deliveries_stmt = (
             select(
                 Driver.id.label("driver_id"),
-                func.count(RouteCustomer.id).label("completed_deliveries_count"),
+                func.count(Order.id).label("completed_deliveries_count"),
                 func.coalesce(func.sum(Payment.amount), 0).label("total_revenue"),
             )
             .join(Route, Route.driver_id == Driver.id)
-            .join(RouteCustomer, RouteCustomer.route_id == Route.id)
-            .join(Payment, Payment.route_customer_id == RouteCustomer.id)
+            .join(Order, Order.route_id == Route.id)
+            .join(Payment, Payment.route_customer_id == Order.id)
             .where(
-                RouteCustomer.status == DeliveryStatus.DELIVERED,
-                RouteCustomer.completed_at.isnot(None),
-                func.date(RouteCustomer.completed_at) >= period.date_from,
-                func.date(RouteCustomer.completed_at) <= period.date_to,
+                Order.status == DeliveryStatus.DELIVERED,
+                Order.completed_at.isnot(None),
+                func.date(Order.completed_at) >= period.date_from,
+                func.date(Order.completed_at) <= period.date_to,
             )
             .group_by(Driver.id)
         )
@@ -95,24 +95,24 @@ class ReportRepository:
             })
         return report
     
-    async def get_deliveries_for_export(self, filters: ReportExportFilters) -> list[RouteCustomer]:
+    async def get_deliveries_for_export(self, filters: ReportExportFilters) -> list[Order]:
         stmt = (
-            select(RouteCustomer)
+            select(Order)
             .where(
-                RouteCustomer.status == DeliveryStatus.DELIVERED,
-                RouteCustomer.completed_at.isnot(None),
-                func.date(RouteCustomer.completed_at) >= filters.date_from,
-                func.date(RouteCustomer.completed_at) <= filters.date_to,
+                Order.status == DeliveryStatus.DELIVERED,
+                Order.completed_at.isnot(None),
+                func.date(Order.completed_at) >= filters.date_from,
+                func.date(Order.completed_at) <= filters.date_to,
             )
             .options(
-                selectinload(RouteCustomer.customer),
-                selectinload(RouteCustomer.route),
-                selectinload(RouteCustomer.payment),
+                selectinload(Order.customer),
+                selectinload(Order.route),
+                selectinload(Order.payment),
             )
-            .order_by(RouteCustomer.completed_at)
+            .order_by(Order.completed_at)
         )
         if filters.driver_id:
-                stmt = stmt.join(Route, RouteCustomer.route_id == Route.id).where(
+                stmt = stmt.join(Route, Order.route_id == Route.id).where(
                     Route.driver_id == filters.driver_id
                 )
 

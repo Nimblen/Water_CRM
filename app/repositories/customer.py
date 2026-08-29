@@ -1,7 +1,7 @@
 from uuid import UUID
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.models.customer import Customer
+from app.db.models.customer import Customer, CustomerBalanceAdjustments
 from app.schemas.customer import CustomerFilters
 from app.schemas.common import PaginationParams
 
@@ -24,8 +24,6 @@ class CustomerRepository:
             stmt = stmt.where(Customer.is_active == filters.is_active)
         if filters.has_debt is not None:
             stmt = stmt.where(Customer.debt > 0) if filters.has_debt else stmt.where(Customer.debt == 0)
-        if filters.has_cooler is not None:
-            stmt = stmt.where(Customer.has_cooler == filters.has_cooler)
         return stmt
 
     async def create(self, customer: Customer) -> Customer:
@@ -62,3 +60,15 @@ class CustomerRepository:
 
     async def delete(self, customer: Customer) -> None:
         await self.session.delete(customer)
+
+
+
+
+class CustomerBalanceAdjustmentsRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, adjustment: CustomerBalanceAdjustments) -> CustomerBalanceAdjustments:
+        self.session.add(adjustment)
+        await self.session.flush()
+        return adjustment

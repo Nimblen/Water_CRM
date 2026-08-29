@@ -13,12 +13,12 @@ from app.repositories.price_settings import PriceSettingsRepository
 from app.db.models.payment import Payment
 from app.db.models.route import Route
 from app.core.constants import DeliveryStatus, NotificationType, RouteStatus, PaymentMethod
-from app.core.exceptions.not_found import RouteNotFoundError, RouteCustomerNotFoundError
+from app.core.exceptions.not_found import RouteNotFoundError, OrderNotFoundError
 from app.core.exceptions.conflict import InvalidDeliveryStatusError
 from app.services.storage import save_payment_photo
 from app.schemas.route import (
     RouteResponse,
-    RouteCustomerResponse,
+    OrderResponse,
     RouteListItem,
     UpdateDeliveryStatus,
     CompleteDelivery,
@@ -44,7 +44,7 @@ class DriverRouteService:
                 date=r.date,
                 status=r.status,
                 completed_count=r.completed_count,
-                total_customers=len(r.route_customers),
+                total_customers=len(r.orders),
             )
             for r in routes
         ]
@@ -55,22 +55,21 @@ class DriverRouteService:
             raise RouteNotFoundError()
 
         customers = [
-            RouteCustomerResponse(
+            OrderResponse(
                 id=rc.id,
                 customer_id=rc.customer_id,
                 customer_full_name=rc.customer.full_name,
                 customer_address=rc.customer.address,
                 customer_phone=rc.customer.phone,
-                customer_has_cooler=rc.customer.has_cooler,
                 status=rc.status,
                 delivered_bottles=rc.delivered_bottles,
                 payment_amount=rc.payment.amount if rc.payment else Decimal("0"),
                 payment_method=rc.payment_method,
                 payment_photo=rc.payment.photo_url if rc.payment else None,
                 completed_at=rc.completed_at,
-                order=rc.order,
+                sequence=rc.sequence,
             )
-            for rc in route.route_customers
+            for rc in route.orders
         ]
 
         return RouteResponse(
@@ -79,7 +78,7 @@ class DriverRouteService:
             status=route.status,
             completed_count=route.completed_count,
             total_customers=len(customers),
-            route_customers=customers,
+            orders=customers,
         )
 
     async def update_delivery_status(
@@ -90,7 +89,7 @@ class DriverRouteService:
     ) -> NotificationEvent:
         rc = await self.route_repo.get_route_customer_for_driver(route_customer_id, driver_id)
         if not rc:
-            raise RouteCustomerNotFoundError()
+            raise OrderNotFoundError()
 
         if rc.status in TERMINAL_STATUSES:
             raise InvalidDeliveryStatusError()
@@ -126,7 +125,7 @@ class DriverRouteService:
     ) -> NotificationEvent:
         rc = await self.route_repo.get_route_customer_for_driver(route_customer_id, driver_id)
         if not rc:
-            raise RouteCustomerNotFoundError()
+            raise order_costNotFoundError()
 
         if rc.status in TERMINAL_STATUSES:
             raise InvalidDeliveryStatusError()

@@ -60,3 +60,9 @@ class CustomerAlreadyActiveError(ConflictError):
 class PasswordNotSetError(ConflictError):
     code = "PASSWORD_NOT_SET"
     message = "Password not set"
+
+
+
+class BothBalancesSetError(ConflictError):
+    code = "BOTH_BALANCES_SET"
+    message = "Both balances set"
