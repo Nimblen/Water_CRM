@@ -87,18 +87,9 @@ class CustomerService:
             if existing:
                 raise CustomerPhoneAlreadyExistsError()
         update_data = data.model_dump(exclude_unset=True)
-
-        # Явный {"cooler_count": null} ушёл бы в NOT NULL колонку и упал бы
-        # IntegrityError уже после flush — трактуем его как "поле не передано".
         if update_data.get("cooler_count", 0) is None:
             del update_data["cooler_count"]
 
-        # Установленные сборки админки шлют legacy-булев has_cooler вместо
-        # cooler_count. Точное число всегда выигрывает, а has_cooler=true не
-        # должен срезать заказчика с тремя кулерами до одного — поэтому правило
-        # применяется к текущему значению из БД, а не к нулю.
-        if "cooler_count" not in update_data and data.has_cooler is not None:
-            update_data["cooler_count"] = max(customer.cooler_count, 1) if data.has_cooler else 0
 
         new_debt = update_data.get("debt", customer.debt)
         new_prepayment = update_data.get("prepayment", customer.prepayment)
