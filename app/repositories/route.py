@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.route import Route
 from app.db.models.order import  Order
-from app.core.constants import DeliveryStatus, RouteStatus
+from app.core.constants import DeliveryStatus, RouteStatus, OrderPurpose
 from app.schemas.route import RouteFilters
 from app.schemas.common import PaginationParams
 
@@ -119,8 +119,8 @@ class RouteRepository:
             result = await self.session.execute(stmt)
             return list(result.scalars().unique().all()), total
 
-    async def add_customer(self, route_id: uuid.UUID, customer_id: uuid.UUID, sequence: int | None = None) -> Order:
-        rc = Order(route_id=route_id, customer_id=customer_id, status=DeliveryStatus.PENDING, sequence=sequence)
+    async def add_customer(self, route_id: uuid.UUID, customer_id: uuid.UUID, order_purpose: OrderPurpose = OrderPurpose.DELIVERY_19L, sequence: int | None = None) -> Order:
+        rc = Order(route_id=route_id, customer_id=customer_id, purpose=order_purpose, status=DeliveryStatus.PENDING, sequence=sequence)
         self.session.add(rc)
         await self.session.flush()
         return rc

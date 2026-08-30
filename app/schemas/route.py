@@ -98,7 +98,7 @@ class RouteListItem(BaseModel):
 
 class CustomerOrderInput(BaseModel):
     customer_id: UUID
-    order_purpose: OrderPurpose | None = None
+    order_purpose: OrderPurpose = OrderPurpose.DELIVERY_19L
 
 
 class CreateRoute(BaseModel):

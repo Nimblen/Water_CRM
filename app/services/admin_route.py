@@ -14,7 +14,7 @@ from app.core.exceptions.validation import InvalidUpdateFieldsError
 from app.core.constants import NotificationType, RouteStatus
 from app.schemas.route import (
     CreateRoute, UpdateRoute, RouteFilters,
-    AdminRouteResponse, AdminRouteListItem, OrderResponse,
+    AdminRouteResponse, AdminRouteListItem, OrderResponse, CustomerOrderInput
 )
 from app.schemas.common import PaginationParams, PaginatedResponse, build_paginated_response
 from app.repositories.idempotency import IdempotencyRepository
@@ -57,11 +57,11 @@ class AdminRouteService:
         )
         route = await self.repo.create(data.driver_id, data.date, status)
         # TODO: Оптимизировать n + 1 запросы
-        for index, customer_id in enumerate(data.customer_ids, start=1):
-            customer = await self.customer_repo.get_by_id(customer_id)
+        for index, customer_data in enumerate(data.customer_orders, start=1):
+            customer = await self.customer_repo.get_by_id(customer_data.customer_id)
             if not customer or not customer.is_active:
                 raise CustomerNotFoundError()
-            await self.repo.add_customer(route.id, customer_id, sequence=index)
+            await self.repo.add_customer(route.id, customer_data.customer_id, customer_data.order_purpose or OrderPurpose.DELIVERY_19L,  sequence=index)
 
         await self.session.flush()
         route = await self.repo.get_by_id(route.id)
@@ -121,14 +121,14 @@ class AdminRouteService:
         route.driver_id = driver_id
         await self.session.flush()
 
-    async def add_customer(self, route_id: UUID, customer_id: UUID, sequence: int | None = None) -> None:
+    async def add_customer(self, route_id: UUID, customer_data: CustomerOrderInput, sequence: int | None = None) -> None:
         route = await self.repo.get_by_id(route_id)
         if not route:
             raise RouteNotFoundError()
-        customer = await self.customer_repo.get_by_id(customer_id)
+        customer = await self.customer_repo.get_by_id(customer_data.customer_id)
         if not customer or not customer.is_active:
             raise CustomerNotFoundError()
-        await self.repo.add_customer(route_id, customer_id, sequence)
+        await self.repo.add_customer(route_id, customer_data.customer_id, customer_data.order_purpose or OrderPurpose.DELIVERY_19L, sequence)
         await self.session.flush()
         await self._notify_driver_if_in_progress(
             route,

@@ -9,6 +9,8 @@ from app.api.v1.admin.customers import router as admin_customer
 from app.api.v1.admin.prices import router as admin_price
 from app.api.v1.admin.routes import router as admin_routes
 from app.api.v1.admin.reports import router as admin_reports
+from app.api.v1.admin.orders import router as admin_orders
+from app.api.v1.orders import router as driver_orders
 from app.api.v1.admin.notifications import router as admin_notification
 from app.api.v1.notifications import router as driver_notification
 from app.middlewares.logging_middleware import logging_middleware
@@ -46,6 +48,8 @@ app.middleware("http")(logging_middleware)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(driver_router)
+app.include_router(admin_orders)
+app.include_router(driver_orders)
 app.include_router(admin_customer)
 app.include_router(admin_price)
 app.include_router(admin_routes)
