@@ -34,7 +34,7 @@ class RouteNotFoundError(NotFoundError):
 
 class OrderNotFoundError(NotFoundError):
     code = "ORDER_NOT_FOUND"
-    message = "Route customer not found"
+    message = "Order not found"
 
 
 class CustomerNotFoundError(NotFoundError):

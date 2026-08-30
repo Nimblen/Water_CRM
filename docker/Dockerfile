@@ -3,7 +3,8 @@ FROM python:3.13-slim AS builder
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
-
+RUN echo 'Acquire::ForceIPv4 "true";' > /etc/apt/apt.conf.d/99force-ipv4 \
+    && sed -i 's|deb.debian.org/debian|ftp.de.debian.org/debian|g' /etc/apt/sources.list.d/debian.sources
 RUN apt-get update && apt-get install -y \
     build-essential \
     gcc \

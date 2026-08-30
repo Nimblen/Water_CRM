@@ -4,12 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import ConnectionPool, Redis
 from app.api.v1.auth import router as auth_router
 from app.api.v1.admin.drivers import router as admin_router
-from app.api.v1.driver import router as driver_router
-from app.api.v1.admin.customer import router as admin_customer
-from app.api.v1.admin.price import router as admin_price
+from app.api.v1.drivers import router as driver_router
+from app.api.v1.admin.customers import router as admin_customer
+from app.api.v1.admin.prices import router as admin_price
 from app.api.v1.admin.routes import router as admin_routes
 from app.api.v1.admin.reports import router as admin_reports
-from app.api.v1.admin.notification import router as admin_notification
+from app.api.v1.admin.notifications import router as admin_notification
 from app.api.v1.notifications import router as driver_notification
 from app.middlewares.logging_middleware import logging_middleware
 from app.core.exceptions.handlers import register_exception_handlers

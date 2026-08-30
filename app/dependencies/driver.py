@@ -7,7 +7,6 @@ from app.services.driver_route import DriverRouteService
 from app.dependencies.session import SessionDep
 from app.dependencies.user import CurrentUserDep
 from app.schemas.user import DriverFilters
-from app.schemas.common import PaginationParams
 from app.core.exceptions.permissions import AccessDeniedError
 from app.core.constants import UserRole
 
@@ -43,10 +42,7 @@ DriverFiltersDep = Annotated[
 ]
 
 
-PaginationDep = Annotated[
-    PaginationParams,
-    Depends(),
-]
+
 
 
 

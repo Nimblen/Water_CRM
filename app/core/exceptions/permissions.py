@@ -12,3 +12,9 @@ class AccessDeniedError(AppException):
     status_code = 403
     code = "ACCESS_DENIED"
     message = "Access denied"
+
+
+class OrderAccessDeniedError(AppException):
+    status_code = 403
+    code = "ORDER_ACCESS_DENIED"
+    message = "Order access denied"

@@ -3,7 +3,7 @@ from fastapi import APIRouter
 
 from app.dependencies.user import CurrentAdminDep
 from app.dependencies.route import AdminRouteServiceDep, RouteFiltersDep
-from app.dependencies.driver import PaginationDep
+from app.dependencies.common import PaginationDep
 from app.schemas.route import CreateRoute, UpdateRoute, AdminRouteResponse, AdminRouteListItem
 from app.schemas.customer import UpdateCustomerSequence
 from app.schemas.common import PaginatedResponse
@@ -53,8 +53,8 @@ async def cancel_route(route_id: UUID, _: CurrentAdminDep, service: AdminRouteSe
 async def assign_driver(route_id: UUID, driver_id: UUID, _: CurrentAdminDep, service: AdminRouteServiceDep):
     await service.assign_driver(route_id, driver_id)
 
-@router.patch("/{route_id}/customers/{customer_id}/order", status_code=204)
-async def update_customer_order(
+@router.patch("/{route_id}/customers/{customer_id}/sequence", status_code=204)
+async def update_customer_sequence(
     route_id: UUID,
     customer_id: UUID,
     body: UpdateCustomerSequence,
