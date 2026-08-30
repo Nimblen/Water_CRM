@@ -19,6 +19,31 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _fk_name(bind, table: str, column: str) -> str | None:
+    """Имя FK, созданного через create_foreign_key(None, ...).
+
+    upgrade() создаёт часть внешних ключей без имени — их именует сам Postgres
+    (обычно <table>_<column>_fkey). Захардкоженное имя в downgrade() сломалось бы
+    на любой базе, где автогенерация дала другое; поэтому спрашиваем каталог.
+    """
+    return bind.execute(
+        text(
+            """
+            SELECT con.conname
+            FROM pg_constraint con
+            JOIN pg_class rel ON rel.oid = con.conrelid
+            JOIN pg_attribute att
+              ON att.attrelid = rel.oid AND att.attnum = ANY(con.conkey)
+            WHERE con.contype = 'f'
+              AND rel.relname = :table
+              AND att.attname = :column
+            LIMIT 1
+            """
+        ),
+        {"table": table, "column": column},
+    ).scalar()
+
+
 def upgrade() -> None:
     bind = op.get_bind()
 
@@ -220,16 +245,21 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    bind = op.get_bind()
+
     op.alter_column('routes', 'driver_id', existing_type=sa.UUID(), nullable=False)
     op.drop_column('price_settings', 'damaged_bottle_fine')
 
     # payments: откатываем recorded_by_user_id / note / order_id -> route_customer_id
-    op.drop_constraint(op.f('ix_payments_recorded_by_user_id'), 'payments', type_='index')
-    op.drop_constraint(None, 'payments', type_='foreignkey')  # recorded_by_user_id fk
+    # DROP COLUMN сам снимает и индекс ix_payments_recorded_by_user_id, и FK на
+    # users — отдельные drop_constraint здесь были бы лишними и падали: индекс не
+    # является constraint, а имя FK неизвестно (create_foreign_key(None, ...)).
     op.drop_column('payments', 'recorded_by_user_id')
     op.drop_column('payments', 'note')
 
-    op.drop_constraint(None, 'payments', type_='foreignkey')  # order_id fk
+    order_id_fk = _fk_name(bind, 'payments', 'order_id')
+    if order_id_fk:
+        op.drop_constraint(order_id_fk, 'payments', type_='foreignkey')
     op.alter_column('payments', 'order_id', new_column_name='route_customer_id')
     op.create_foreign_key(
         op.f('payments_route_customer_id_fkey'), 'payments', 'orders',
@@ -251,17 +281,24 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_route_expenses_route_id'), table_name='route_expenses')
     op.drop_index(op.f('ix_route_expenses_driver_id'), table_name='route_expenses')
     op.drop_table('route_expenses')
+    # drop_table не удаляет enum-тип, созданный неявно через sa.Enum в create_table.
+    # Без этого цикл upgrade -> downgrade -> upgrade падает на втором upgrade с
+    # DuplicateObjectError: type "expense_category" already exists.
+    # (order_purpose ниже удаляется по той же причине.)
+    op.execute("DROP TYPE IF EXISTS expense_category")
 
     # orders -> route_customers: откатываем номер, purpose, доп.колонки, enum
     op.drop_constraint('orders_number_key', 'orders', type_='unique')
     op.execute("ALTER TABLE orders ALTER COLUMN number DROP IDENTITY IF EXISTS")
     op.drop_column('orders', 'number')
 
-    op.drop_constraint(None, 'orders', type_='foreignkey')  # moved_from_route_id fk
+    # FK на moved_from_route_id снимется вместе с колонкой; имени у него нет.
     op.drop_index(op.f('ix_orders_moved_from_route_id'), table_name='orders')
     op.drop_column('orders', 'moved_at')
     op.drop_column('orders', 'moved_from_route_id')
-    op.drop_column('orders', 'completed_at')
+    # completed_at здесь НЕ трогаем: колонку создала bf2bc69ce472 вместе с
+    # route_customers, upgrade() её не добавлял. Удаление роняло бы вместе с
+    # откатом реальные даты доставок, которых эта ревизия не создавала.
     op.drop_column('orders', 'purpose')
     op.execute("DROP TYPE IF EXISTS order_purpose")
     op.drop_column('orders', 'order_amount')

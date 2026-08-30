@@ -61,7 +61,7 @@ async def update_customer_order(
     _: CurrentAdminDep,
     service: AdminRouteServiceDep,
 ):
-    await service.update_customer_sequence(route_id, customer_id, body.order)
+    await service.update_customer_sequence(route_id, customer_id, body.sequence)
 
 @router.post("/{route_id}/customers/{customer_id}", status_code=204)
 async def add_customer(route_id: UUID, customer_id: UUID, _: CurrentAdminDep, service: AdminRouteServiceDep):

@@ -61,6 +61,7 @@ class DriverRouteService:
                 customer_full_name=rc.customer.full_name,
                 customer_address=rc.customer.address,
                 customer_phone=rc.customer.phone,
+                customer_has_cooler=rc.customer.cooler_count > 0,
                 status=rc.status,
                 delivered_bottles=rc.delivered_bottles,
                 payment_amount=rc.payment.amount if rc.payment else Decimal("0"),
@@ -122,10 +123,12 @@ class DriverRouteService:
         driver_id: UUID,
         data: CompleteDelivery,
         payment_photo: UploadFile | None = None,
+        *,
+        recorded_by_user_id: UUID,
     ) -> NotificationEvent:
         rc = await self.route_repo.get_route_customer_for_driver(route_customer_id, driver_id)
         if not rc:
-            raise order_costNotFoundError()
+            raise OrderNotFoundError()
 
         if rc.status in TERMINAL_STATUSES:
             raise InvalidDeliveryStatusError()
@@ -156,10 +159,15 @@ class DriverRouteService:
         if data.payment_method != PaymentMethod.DEBT:
             payment = Payment(
                 customer_id=customer.id,
-                route_customer_id=rc.id,
+                # Поле переименовано в order_id; route_customer_id в модели нет.
+                order_id=rc.id,
                 amount=payment_amount,
                 payment_method=data.payment_method,
                 photo_url=photo_url,
+                # FK смотрит на users.id, а driver_id выше — это drivers.id.
+                # Разные таблицы, поэтому id пользователя приходит отдельно из
+                # зависимости ручки, а не выводится из driver_id.
+                recorded_by_user_id=recorded_by_user_id,
             )
             self.session.add(payment)
 

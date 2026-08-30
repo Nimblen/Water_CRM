@@ -131,6 +131,10 @@ class Order(AbstractBase):
     )
     route = relationship("Route", back_populates="orders", foreign_keys=[route_id],)
     customer = relationship("Customer", back_populates="orders")
+    # uselist=False держится только пока у заказа ровно один платёж. Unique с
+    # payments.order_id уже снят, а по бизнес-правилам платежей может быть
+    # несколько (доплата, корректировка админом). Как только появится правка
+    # оплаты, связь должна стать списком — здесь и в Payment.order.
     payment = relationship(
         "Payment",
         back_populates="order",

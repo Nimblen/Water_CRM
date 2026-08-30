@@ -31,6 +31,18 @@ async def get_current_driver_id(user: CurrentUserDep) -> UUID:
     return user.driver.id
 
 
+async def get_current_driver_user_id(user: CurrentUserDep) -> UUID:
+    # Отдельная зависимость, потому что get_current_driver_id возвращает
+    # drivers.id, а payments.recorded_by_user_id ссылается на users.id — из
+    # одного вывести другое нельзя. Существующие ручки не трогаем: этот id
+    # нужен только там, где записывается платёж.
+    if user.role != UserRole.DRIVER:
+        raise AccessDeniedError()
+    if not user.driver:
+        raise AccessDeniedError()
+    return user.id
+
+
 DriverServiceDep = Annotated[
     DriverService,
     Depends(get_driver_service),
@@ -51,6 +63,9 @@ PaginationDep = Annotated[
 
 
 CurrentDriverIdDep = Annotated[UUID, Depends(get_current_driver_id)]
+
+
+CurrentDriverUserIdDep = Annotated[UUID, Depends(get_current_driver_user_id)]
 
 
 DriverRouteServiceDep = Annotated[

@@ -3,7 +3,7 @@ from uuid import UUID
 from datetime import date as date_type, datetime
 from decimal import Decimal
 from fastapi import Form, HTTPException
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator
 from app.core.constants import DeliveryStatus, RouteStatus, PaymentMethod
 
 
@@ -61,6 +61,7 @@ class OrderResponse(BaseModel):
     customer_full_name: str
     customer_address: str
     customer_phone: str
+    customer_has_cooler: bool
     status: DeliveryStatus
     delivered_bottles: int | None
     payment_amount: Decimal | None
@@ -71,6 +72,16 @@ class OrderResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    # Сборки клиента живут в сторах месяцами, и на сервере одновременно работают
+    # старое и новое приложение: установленные читают `order`, новые — `sequence`.
+    # Отдаём оба ключа. Именно computed_field, а не второе обычное поле — тогда
+    # значения физически не могут разъехаться, если правку внесут только в одно.
+    @computed_field
+    @property
+    def order(self) -> int | None:
+        return self.sequence
+
+
 class RouteResponse(BaseModel):
     id: UUID
     date: date_type
@@ -80,6 +91,14 @@ class RouteResponse(BaseModel):
     orders: list[OrderResponse]
 
     model_config = {"from_attributes": True}
+
+    # Установленные сборки читают route_customers. Без этого ключа маршрут
+    # открывается ПУСТЫМ и у водителя, и у админа — список точек просто не
+    # находится в ответе. Отдаём то же содержимое, что и в orders.
+    @computed_field
+    @property
+    def route_customers(self) -> list[OrderResponse]:
+        return self.orders
 
 
 class RouteListItem(BaseModel):

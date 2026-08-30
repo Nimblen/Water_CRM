@@ -69,7 +69,7 @@ class ReportRepository:
             )
             .join(Route, Route.driver_id == Driver.id)
             .join(Order, Order.route_id == Route.id)
-            .join(Payment, Payment.route_customer_id == Order.id)
+            .join(Payment, Payment.order_id == Order.id)
             .where(
                 Order.status == DeliveryStatus.DELIVERED,
                 Order.completed_at.isnot(None),
