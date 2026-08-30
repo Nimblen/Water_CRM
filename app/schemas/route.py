@@ -4,7 +4,7 @@ from datetime import date as date_type, datetime
 from decimal import Decimal
 from fastapi import Form, HTTPException
 from pydantic import BaseModel, Field, field_validator
-from app.core.constants import DeliveryStatus, RouteStatus, PaymentMethod
+from app.core.constants import DeliveryStatus, RouteStatus, PaymentMethod, OrderPurpose
 
 
 ALLOWED_MANUAL_STATUSES = {DeliveryStatus.ON_WAY, DeliveryStatus.FAILED}
@@ -61,6 +61,7 @@ class OrderResponse(BaseModel):
     customer_full_name: str
     customer_address: str
     customer_phone: str
+    customer_cooler_count: int
     status: DeliveryStatus
     delivered_bottles: int | None
     payment_amount: Decimal | None
@@ -70,6 +71,8 @@ class OrderResponse(BaseModel):
     sequence: int | None
 
     model_config = {"from_attributes": True}
+
+
 
 class RouteResponse(BaseModel):
     id: UUID
@@ -82,6 +85,7 @@ class RouteResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+
 class RouteListItem(BaseModel):
     id: UUID
     date: date_type
@@ -92,13 +96,15 @@ class RouteListItem(BaseModel):
     model_config = {"from_attributes": True}
 
 
-
+class CustomerOrderInput(BaseModel):
+    customer_id: UUID
+    order_purpose: OrderPurpose | None = None
 
 
 class CreateRoute(BaseModel):
     driver_id: UUID
     date: date_type
-    customer_ids: list[UUID] = Field(default_factory=list)
+    customer_orders: list[CustomerOrderInput] = Field(default_factory=list)
 
     model_config = {"extra": "ignore"}
 

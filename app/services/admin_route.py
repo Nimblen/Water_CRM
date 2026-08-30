@@ -218,6 +218,7 @@ class AdminRouteService:
                 customer_full_name=rc.customer.full_name,
                 customer_address=rc.customer.address,
                 customer_phone=rc.customer.phone,
+                customer_cooler_count=rc.customer.cooler_count,
                 status=rc.status,
                 delivered_bottles=rc.delivered_bottles,
                 payment_amount=rc.payment.amount if rc.payment else Decimal("0"),

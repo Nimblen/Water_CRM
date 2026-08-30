@@ -36,6 +36,12 @@ class Route(AbstractBase):
 
     driver = relationship("Driver", back_populates="routes")
 
+    # РЕШЕНИЕ (этап "починка 65e22e3"): routes.purpose — цель маршрута по
+    # умолчанию — сознательно НЕ добавляем. Ничего не сломано: колонку никто не
+    # читает и не пишет, а у orders.purpose есть собственный server_default
+    # DELIVERY_19L. Добавление сейчас было бы новой возможностью, а не починкой.
+    # Переносится на этап заказов вместе с /admin/orders и переносом заказа.
+
     orders = relationship(
         "Order",
         back_populates="route",

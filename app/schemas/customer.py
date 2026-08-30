@@ -18,11 +18,15 @@ class CreateCustomer(BaseModel):
 
     custom_water_price: Decimal | None = Field(default=None, ge=0)
 
+
+
     @model_validator(mode="after")
     def validate_balances(self) -> Self:
         if self.debt > 0 and self.prepayment > 0:
             raise ValueError("BOTH_BALANCES_SET")
         return self
+
+
 
     @field_validator("cooler_count")
     def validate_cooler_count(cls, value: int) -> int:
@@ -44,6 +48,7 @@ class UpdateCustomer(BaseModel):
     prepayment: Decimal | None = Field(default=None, ge=0)
 
     custom_water_price: Decimal | None = Field(default=None, ge=0)
+
 
     @field_validator("cooler_count")
     def validate_cooler_count(cls, value: int) -> int:
@@ -72,6 +77,8 @@ class CustomerResponse(BaseModel):
 
 
     model_config = {"from_attributes": True}
+
+
 
 class CustomerFilters(BaseModel):
     search: str | None = None

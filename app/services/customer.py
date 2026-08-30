@@ -87,6 +87,10 @@ class CustomerService:
             if existing:
                 raise CustomerPhoneAlreadyExistsError()
         update_data = data.model_dump(exclude_unset=True)
+        if update_data.get("cooler_count", 0) is None:
+            del update_data["cooler_count"]
+
+
         new_debt = update_data.get("debt", customer.debt)
         new_prepayment = update_data.get("prepayment", customer.prepayment)
         if new_debt > 0 and new_prepayment > 0:

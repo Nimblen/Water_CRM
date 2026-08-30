@@ -18,8 +18,11 @@ class RouteRepository:
         stmt = (
             select(Route)
             .where(Route.driver_id == driver_id)
-            .join(Order)
-            .options(selectinload(Route.order))
+            # Условие join задано явно: у Order два внешних ключа на routes
+            # (route_id и moved_from_route_id), и неявный join стал
+            # неоднозначным — AmbiguousForeignKeysError.
+            .join(Order, Order.route_id == Route.id)
+            .options(selectinload(Route.orders))
             .order_by(nulls_last(Order.sequence.asc()))
         )
         if statuses:
@@ -32,8 +35,8 @@ class RouteRepository:
             select(Route)
             .where(Route.id == route_id, Route.driver_id == driver_id)
             .options(
-                selectinload(Route.order).selectinload(Order.customer),
-                selectinload(Route.order).selectinload(Order.payment),
+                selectinload(Route.orders).selectinload(Order.customer),
+                selectinload(Route.orders).selectinload(Order.payment),
             )
         )
         if statuses:
@@ -46,7 +49,9 @@ class RouteRepository:
     ) -> Order | None:
         stmt = (
             select(Order)
-            .join(Route)
+            # Тот же случай: без явного onclause SQLAlchemy не выбирает между
+            # route_id и moved_from_route_id и падает на любом действии водителя.
+            .join(Route, Order.route_id == Route.id)
             .where(Order.id == order_id, Route.driver_id == driver_id)
             .options(
                 selectinload(Order.customer),
@@ -87,8 +92,8 @@ class RouteRepository:
             .where(Route.id == route_id)
             .options(
                 selectinload(Route.driver),
-                selectinload(Route.order).selectinload(Order.customer),
-                selectinload(Route.order).selectinload(Order.payment),
+                selectinload(Route.orders).selectinload(Order.customer),
+                selectinload(Route.orders).selectinload(Order.payment),
             )
         )
         result = await self.session.execute(stmt)
@@ -98,7 +103,7 @@ class RouteRepository:
             self, pagination: PaginationParams, filters: RouteFilters
         ) -> tuple[list[Route], int]:
             base_stmt = self._apply_filters(
-                select(Route).options(selectinload(Route.driver), selectinload(Route.order)),
+                select(Route).options(selectinload(Route.driver), selectinload(Route.orders)),
                 filters,
             )
 
