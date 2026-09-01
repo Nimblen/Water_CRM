@@ -1,6 +1,6 @@
 from typing import Annotated
 from uuid import UUID
-from fastapi import APIRouter, File, UploadFile, Depends
+from fastapi import APIRouter, File, Request, UploadFile, Depends
 from app.dependencies.driver import CurrentDriverIdDep, CurrentDriverUserIdDep, DriverRouteServiceDep
 from app.schemas.route import RouteResponse, RouteListItem, UpdateDeliveryStatus, CompleteDelivery
 from app.dependencies.idempotency import IdempotencyKeyDep
@@ -36,6 +36,7 @@ async def update_delivery_status(
 
 @router.post("/routes/orders/{order_id}/complete", status_code=204)
 async def complete_delivery(
+    request: Request,
     order_id: UUID,
     data: Annotated[CompleteDelivery, Depends(CompleteDelivery.as_form)],
     driver_id: CurrentDriverIdDep,
@@ -45,7 +46,10 @@ async def complete_delivery(
 ):
     await service.complete_delivery(order_id=order_id, payload=data, photo=payment_photo, driver_id=driver_id)
     if idempotency_key:
+        # Ключ ищется по request.url.path (фактический путь с UUID), поэтому и
+        # сохранять надо его же: с шаблоном пути повтор никогда не совпадал и
+        # водитель после обрыва связи получал 409 вместо тихого успеха.
         await service.idempotency_repo.save(
-            idempotency_key, endpoint="/driver/routes/orders/{order_id}/complete",
+            idempotency_key, endpoint="/driver/routes/customers/{route_customer_id}/complete",
             status_code=204, response_body={},
         )

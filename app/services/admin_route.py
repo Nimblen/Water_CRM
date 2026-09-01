@@ -16,7 +16,7 @@ from app.core.exceptions.validation import InvalidUpdateFieldsError
 from app.core.constants import NotificationType, OrderPurpose, RouteStatus
 from app.schemas.route import (
     CreateRoute, UpdateRoute, RouteFilters,
-    AdminRouteResponse, AdminRouteListItem, OrderResponse, CustomerOrderInput
+    AdminRouteResponse, AdminRouteListItem, OrderResponse
 )
 from app.schemas.common import PaginationParams, PaginatedResponse, build_paginated_response
 from app.repositories.idempotency import IdempotencyRepository
@@ -37,7 +37,10 @@ class AdminRouteService:
     async def _notify_driver_if_in_progress(
         self, route: Route, type_: NotificationType, payload: dict
     ) -> None:
-        if route.status != RouteStatus.IN_PROGRESS:
+        # Маршрут-заготовку без водителя создаёт перенос заказа на свободную
+        # дату. Уведомлять там некого, а driver_id ушёл бы в NOT NULL колонку
+        # driver_notifications и уронил бы запрос целиком.
+        if route.status != RouteStatus.IN_PROGRESS or route.driver_id is None:
             return
         await self.driver_notifications.broadcast(
             self.session, route.driver_id, type_, payload
@@ -129,14 +132,24 @@ class AdminRouteService:
         route.driver_id = driver_id
         await self.session.flush()
 
-    async def add_customer(self, route_id: UUID, customer_data: CustomerOrderInput, sequence: int | None = None) -> None:
+    async def add_customer(
+        self,
+        route_id: UUID,
+        customer_id: UUID,
+        purpose: OrderPurpose | None = None,
+        sequence: int | None = None,
+    ) -> None:
         route = await self.repo.get_by_id(route_id)
         if not route:
             raise RouteNotFoundError()
-        customer = await self.customer_repo.get_by_id(customer_data.customer_id)
+        customer = await self.customer_repo.get_by_id(customer_id)
         if not customer or not customer.is_active:
             raise CustomerNotFoundError()
-        await self.repo.add_customer(route_id, customer_data.customer_id, customer_data.order_purpose or OrderPurpose.DELIVERY_19L, sequence)
+        # Цель не передана — доставка капсул: до появления целей она была
+        # единственной, и старые сборки обязаны сохранить прежнее поведение.
+        await self.repo.add_customer(
+            route_id, customer_id, purpose or OrderPurpose.DELIVERY_19L, sequence
+        )
         await self.session.flush()
         await self._notify_driver_if_in_progress(
             route,
@@ -178,7 +191,7 @@ class AdminRouteService:
             cancelled = True
             await self.session.flush()
 
-        if not was_in_progress:
+        if not was_in_progress or route.driver_id is None:
             return
 
         await self.driver_notifications.broadcast(
@@ -204,7 +217,7 @@ class AdminRouteService:
         was_in_progress = route.status == RouteStatus.IN_PROGRESS
         route.status = RouteStatus.CANCELLED
         await self.session.flush()
-        if was_in_progress:
+        if was_in_progress and route.driver_id is not None:
             await self.driver_notifications.broadcast(
                 self.session,
                 route.driver_id,

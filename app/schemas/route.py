@@ -137,6 +137,34 @@ class CustomerOrderInput(BaseModel):
     sequence: int | None = None
 
 
+class AddRouteCustomer(BaseModel):
+    """Тело POST /admin/routes/{route_id}/customers/{customer_id}.
+
+    Все поля необязательные, потому что установленные сборки шлют этот запрос
+    вообще без тела — заказчик у них только в пути. Путь и остаётся источником
+    истины: customer_id принимается ради новых сборок, но не используется.
+    """
+
+    customer_id: UUID | None = None
+    order_purpose: OrderPurpose | None = None
+
+    model_config = {"extra": "ignore"}
+
+
+class AddRouteCustomer(BaseModel):
+    """Тело POST /admin/routes/{route_id}/customers/{customer_id}.
+
+    Все поля необязательные, потому что установленные сборки шлют этот запрос
+    вообще без тела — заказчик у них только в пути. Путь и остаётся источником
+    истины: customer_id принимается ради новых сборок, но не используется.
+    """
+
+    customer_id: UUID | None = None
+    order_purpose: OrderPurpose | None = None
+
+    model_config = {"extra": "ignore"}
+
+
 class CreateRoute(BaseModel):
     driver_id: UUID | None = None
     date: date_type
@@ -172,8 +200,8 @@ class AdminRouteListItem(RouteCashSummary):
     status: RouteStatus
     completed_count: int
     total_customers: int
-    driver_id: UUID | None
-    driver_full_name: str | None
+    driver_id: UUID | None | None = None
+    driver_full_name: str | None | None = None
 
 
 class AdminRouteResponse(RouteCashSummary):
