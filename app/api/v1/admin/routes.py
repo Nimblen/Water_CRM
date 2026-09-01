@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from app.dependencies.user import CurrentAdminDep
 from app.dependencies.route import AdminRouteServiceDep, RouteFiltersDep
 from app.dependencies.common import PaginationDep
-from app.schemas.route import CreateRoute, UpdateRoute, AdminRouteResponse, AdminRouteListItem, CustomerOrderInput
+from app.schemas.route import CreateRoute, UpdateRoute, AdminRouteResponse, AdminRouteListItem, AddRouteCustomer
 from app.schemas.customer import UpdateCustomerSequence
 from app.schemas.common import PaginatedResponse
 from app.dependencies.idempotency import IdempotencyKeyDep
@@ -64,8 +64,18 @@ async def update_customer_sequence(
     await service.update_customer_sequence(route_id, customer_id, body.sequence)
 
 @router.post("/{route_id}/customers/{customer_id}", status_code=204)
-async def add_customer(route_id: UUID, customer_data: CustomerOrderInput, _: CurrentAdminDep, service: AdminRouteServiceDep):
-    await service.add_customer(route_id, customer_data)
+async def add_customer(
+    route_id: UUID,
+    customer_id: UUID,
+    _: CurrentAdminDep,
+    service: AdminRouteServiceDep,
+    body: AddRouteCustomer | None = None,
+):
+    # Заказчик — из пути: тело появилось вместе с целью заказа, а сборки в
+    # сторах шлют этот POST пустым и обязаны продолжать работать.
+    await service.add_customer(
+        route_id, customer_id, body.order_purpose if body else None
+    )
 
 
 @router.delete("/{route_id}/customers/{customer_id}", status_code=204)
