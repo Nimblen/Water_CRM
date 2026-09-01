@@ -1,17 +1,20 @@
 from datetime import date, datetime, timezone
 from uuid import UUID
-
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import UploadFile
 from app.core.constants import DeliveryStatus, NotificationType, RouteStatus
-from app.core.exceptions.conflict import OrderAlreadyCompletedError
+from app.core.exceptions.conflict import OrderAlreadyCompletedError, OrderNotCompletedError
 from app.core.exceptions.not_found import OrderNotFoundError, RouteNotFoundError
 from app.core.exceptions.validation import MoveDateInPastError
 from app.repositories.route import RouteRepository
+from app.services.customer_balance import CustomerBalanceService
 from app.services.notification import AdminNotificationService, DriverNotificationService
-from sqlalchemy.ext.asyncio import AsyncSession
+from app.services.storage import save_payment_photo
 
 from app.repositories.order import OrderRepository, OrderListFilters
 from app.schemas.order import (
     AdminOrderFilters,
+    AdminPaymentUpdate,
     DriverOrderFilters,
     MoveOrder,
     OrderResponse,
@@ -25,6 +28,7 @@ class OrderService:
         self.session = session
         self.repo = OrderRepository(session)
         self.route_repo = RouteRepository(session)
+        self.balance_service = CustomerBalanceService(session)
         self.driver_notifications = driver_notifications
         self.admin_notifications = admin_notifications
 
@@ -155,3 +159,55 @@ class OrderService:
             self.session, NotificationType.ORDER_MOVED,
             {"order_id": str(order_id), "from_route_id": str(old_route_id), "to_route_id": str(target_route.id)},
         )
+
+
+    async def update_order_payment(
+        self,
+        order_id: UUID,
+        payload: AdminPaymentUpdate,
+        photo: UploadFile | None,
+        admin_id: UUID,
+    ) -> None:
+        order = await self.repo.get_by_id(order_id)
+        if not order:
+            raise OrderNotFoundError()
+
+        if order.status != DeliveryStatus.DELIVERED:
+            raise OrderNotCompletedError()
+
+        paid_amount = await self.repo.get_total_paid(order_id)
+        delta = payload.amount - paid_amount
+
+        photo_url = await save_payment_photo(photo) if photo is not None else None
+
+        if delta != 0:
+            await self.repo.add_payment(
+                order_id=order_id,
+                amount=delta,
+                payment_method=payload.payment_method,
+                note=payload.note,
+                photo_url=photo_url,
+                recorded_by_user_id=admin_id,
+            )
+            await self.balance_service.apply_delta(
+                order.customer,
+                delta=delta,
+                user_id=admin_id,
+                reason=f"order_payment_correction:{order_id}",
+            )
+
+        order.order_amount = payload.amount
+        order.payment_method = payload.payment_method
+
+        await self._notify_payment_updated(order)
+
+    async def _notify_payment_updated(self, order) -> None:
+        admin_service = self.admin_notifications
+        driver_service = self.driver_notifications
+        payload = {"order_id": str(order.id), "order_amount": str(order.order_amount)}
+
+        await admin_service.broadcast(self.session, NotificationType.ORDER_PAYMENT_UPDATED, payload)
+        if order.route.driver_id:
+            await driver_service.broadcast(
+                self.session, order.route.driver_id, NotificationType.ORDER_PAYMENT_UPDATED, payload
+            )

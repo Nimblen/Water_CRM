@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 from uuid import UUID
+from app.db.models.payment import Payment
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import contains_eager
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -119,3 +121,31 @@ class OrderRepository:
         )
         return result.scalar_one()
     
+
+
+    async def get_total_paid(self, order_id: UUID) -> Decimal:
+        result = await self.session.execute(
+            select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.order_id == order_id)
+        )
+        return result.scalar_one()
+
+    async def add_payment(
+        self,
+        order_id: UUID,
+        amount: Decimal,
+        payment_method: PaymentMethod,
+        note: str | None,
+        photo_url: str | None,
+        recorded_by_user_id: UUID,
+    ) -> Payment:
+        payment = Payment(
+            order_id=order_id,
+            amount=amount,
+            payment_method=payment_method,
+            note=note,
+            photo_url=photo_url,
+            recorded_by_user_id=recorded_by_user_id,
+        )
+        self.session.add(payment)
+        await self.session.flush()
+        return payment

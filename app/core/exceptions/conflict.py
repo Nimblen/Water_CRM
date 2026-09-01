@@ -69,5 +69,10 @@ class BothBalancesSetError(ConflictError):
 
 
 class OrderAlreadyCompletedError(ConflictError):
-    code = 409
-    message = "ORDER_ALREADY_COMPLETED"
+    code = "ORDER_ALREADY_COMPLETED"
+    message = "Order already completed"
+
+
+class OrderNotCompletedError(ConflictError):
+    code = "ORDER_NOT_COMPLETED"
+    message = "Order not completed"

@@ -93,3 +93,12 @@ class MoveOrder(BaseModel):
     @property
     def is_by_date(self) -> bool:
         return self.order_date is not None
+    
+
+
+
+
+class AdminPaymentUpdate(BaseModel):
+    amount: Decimal
+    payment_method: PaymentMethod
+    note: Optional[str] = None
