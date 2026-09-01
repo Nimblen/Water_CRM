@@ -1,6 +1,7 @@
 from datetime import date, datetime
+from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from app.core.constants import DeliveryStatus, OrderPurpose, PaymentMethod
 from decimal import Decimal
 
@@ -71,3 +72,24 @@ class DriverOrderFilters(BaseModel):
     purpose: OrderPurpose | None = None
     payment_method: PaymentMethod | None = None
     search: str | None = None
+
+
+
+class MoveOrder(BaseModel):
+    target_route_id: Optional[UUID] = None
+    order_date: Optional[date] = None
+    driver_id: Optional[UUID] = None
+
+    @model_validator(mode="after")
+    def check_exactly_one_variant(self):
+        if self.target_route_id is not None and self.order_date is not None:
+            raise ValueError("Provide either target_route_id or order_date, not both")
+        if self.target_route_id is None and self.order_date is None:
+            raise ValueError("Either target_route_id or order_date is required")
+        if self.target_route_id is not None and self.driver_id is not None:
+            raise ValueError("driver_id is only used with the order_date variant")
+        return self
+
+    @property
+    def is_by_date(self) -> bool:
+        return self.order_date is not None

@@ -44,6 +44,7 @@ class NotificationType(str, Enum):
     CUSTOMER_REMOVED = "customer_removed"
     ROUTE_CANCELLED = "route_cancelled"
     CUSTOMER_ADDED = "customer_added"
+    ORDER_MOVED = "order_moved"
     
 
 

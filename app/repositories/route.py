@@ -1,3 +1,4 @@
+from datetime import date
 import uuid
 from sqlalchemy import select, func, nulls_last
 from sqlalchemy.orm import selectinload
@@ -80,7 +81,7 @@ class RouteRepository:
             stmt = stmt.where(Route.date <= filters.date_to)
         return stmt
 
-    async def create(self, driver_id: uuid.UUID, date_, status: RouteStatus = RouteStatus.CREATED) -> Route:
+    async def create(self, driver_id: uuid.UUID | None, date_, status: RouteStatus = RouteStatus.CREATED) -> Route:
         route = Route(driver_id=driver_id, date=date_, status=status)
         self.session.add(route)
         await self.session.flush()
@@ -146,3 +147,11 @@ class RouteRepository:
             .where(Order.route_id == route_id)
         )
         return result or 0
+    
+    async def find_by_date_and_driver(
+        self, order_date: date, driver_id: uuid.UUID | None
+    ) -> Route | None:
+        stmt = select(Route).where(Route.date == order_date)
+        stmt = stmt.where(Route.driver_id == driver_id) if driver_id else stmt.where(Route.driver_id.is_(None))
+        result = await self.session.execute(stmt)
+        return result.scalars().first()

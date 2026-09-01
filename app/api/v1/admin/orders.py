@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from app.dependencies.user import CurrentAdminDep
 from app.dependencies.common import PaginationDep
 from app.dependencies.order import AdminOrderFiltersDep, OrderServiceDep
-from app.schemas.order import OrderResponse
+from app.schemas.order import OrderResponse, MoveOrder
 from app.schemas.common import PaginatedResponse
 
 router = APIRouter(prefix="/admin/orders", tags=["admin:orders"])
@@ -27,3 +27,10 @@ async def get_order(
     service: OrderServiceDep,
 ):
     return await service.get_admin_order(order_id)
+
+
+
+
+@router.post("/{order_id}/move", status_code=204)
+async def move_order(order_id: UUID, payload: MoveOrder, _: CurrentAdminDep, service: OrderServiceDep):
+    await service.move_order(order_id, payload)

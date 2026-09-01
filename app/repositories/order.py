@@ -105,3 +105,17 @@ class OrderRepository:
         )
         result = await self.session.execute(stmt)
         return result.unique().scalar_one_or_none()
+    
+
+    async def get_max_sequence(self, route_id: UUID) -> int | None:
+        result = await self.session.execute(
+            select(func.max(Order.sequence)).where(Order.route_id == route_id)
+        )
+        return result.scalar_one_or_none()
+    #TODO: убрать в другое место 
+    async def count_by_route(self, route_id: UUID) -> int:
+        result = await self.session.execute(
+            select(func.count()).select_from(Order).where(Order.route_id == route_id)
+        )
+        return result.scalar_one()
+    

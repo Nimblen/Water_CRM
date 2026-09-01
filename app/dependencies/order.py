@@ -3,6 +3,7 @@ from uuid import UUID
 from typing import Annotated
 from fastapi import Depends, Query
 from app.dependencies.session import SessionDep
+from app.dependencies.notification import AdminNotificationServiceDep, DriverNotificationServiceDep
 from app.schemas.order import AdminOrderFilters, DriverOrderFilters
 from app.services.order import OrderService
 from app.core.constants import DeliveryStatus, OrderPurpose, PaymentMethod
@@ -57,8 +58,10 @@ def get_driver_order_filters(
 
 async def get_order_service(
     session: SessionDep,
+    admin_notifications: AdminNotificationServiceDep,
+    driver_notifications: DriverNotificationServiceDep
 ) -> OrderService:
-    return OrderService(session)
+    return OrderService(session, driver_notifications, admin_notifications)
 
 
 AdminOrderFiltersDep = Annotated[AdminOrderFilters, Depends(get_admin_order_filters)]

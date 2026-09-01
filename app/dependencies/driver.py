@@ -1,6 +1,6 @@
 from typing import Annotated
 from uuid import UUID
-from app.dependencies.notification import NotificationServiceDep
+from app.dependencies.notification import AdminNotificationServiceDep
 from fastapi import Depends
 from app.services.driver import DriverService
 from app.services.driver_route import DriverRouteService
@@ -17,7 +17,7 @@ def get_driver_service(
 
 def get_driver_route_service(
     session: SessionDep,
-    notifications: NotificationServiceDep,
+    notifications: AdminNotificationServiceDep,
 ) -> DriverRouteService:
     return DriverRouteService(session, notifications)
 

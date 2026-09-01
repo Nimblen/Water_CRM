@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Header, Query
 from sse_starlette.sse import EventSourceResponse
 
 from app.dependencies.user import CurrentAdminDep
-from app.dependencies.notification import NotificationServiceDep
+from app.dependencies.notification import AdminNotificationServiceDep
 
 router = APIRouter(prefix="/admin/notifications", tags=["admin-notifications"])
 
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/admin/notifications", tags=["admin-notifications"])
 async def stream_notifications(
     request: Request,
     admin: CurrentAdminDep,
-    service: NotificationServiceDep,
+    service: AdminNotificationServiceDep,
     last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
     since: int = Query(default=0),
 ):

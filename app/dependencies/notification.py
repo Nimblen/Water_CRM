@@ -7,7 +7,7 @@ def get_notification_service(request: Request) -> AdminNotificationService:
     return AdminNotificationService(request.app.state.redis)
 
 
-NotificationServiceDep = Annotated[AdminNotificationService, Depends(get_notification_service)]
+AdminNotificationServiceDep = Annotated[AdminNotificationService, Depends(get_notification_service)]
 
 
 def get_driver_notification_service(request: Request) -> DriverNotificationService:

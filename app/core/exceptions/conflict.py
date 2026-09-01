@@ -66,3 +66,8 @@ class PasswordNotSetError(ConflictError):
 class BothBalancesSetError(ConflictError):
     code = "BOTH_BALANCES_SET"
     message = "Both balances set"
+
+
+class OrderAlreadyCompletedError(ConflictError):
+    code = 409
+    message = "ORDER_ALREADY_COMPLETED"
