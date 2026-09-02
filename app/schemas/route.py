@@ -3,12 +3,24 @@ from uuid import UUID
 from datetime import date as date_type, datetime
 from decimal import Decimal
 from app.core.exceptions.validation import PaymentAmountInvalidError
+from app.schemas.order import OrderResponse
 from fastapi import Form, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from app.core.constants import DeliveryStatus, RouteStatus, PaymentMethod, OrderPurpose
 
 
 ALLOWED_MANUAL_STATUSES = {DeliveryStatus.ON_WAY, DeliveryStatus.FAILED}
+
+
+
+class RouteCashSummary(BaseModel):
+    cash_collected: Decimal = Decimal("0.00")
+    cashless_collected: Decimal = Decimal("0.00")
+    debt_amount: Decimal = Decimal("0.00")
+    expenses_total: Decimal = Decimal("0.00")
+    cash_balance: Decimal = Decimal("0.00")
+
+
 
 
 class UpdateDeliveryStatus(BaseModel):
@@ -82,26 +94,26 @@ class CompleteDelivery(BaseModel):
             payment_method=payment_method,
         )
 
-class OrderResponse(BaseModel):
-    id: UUID
-    customer_id: UUID
-    customer_full_name: str
-    customer_address: str
-    customer_phone: str
-    customer_cooler_count: int
-    status: DeliveryStatus
-    delivered_bottles: int | None
-    payment_amount: Decimal | None
-    payment_method: PaymentMethod | None = None
-    payment_photo: str | None
-    completed_at: datetime | None
-    sequence: int | None
+# class OrderResponse(BaseModel):
+#     id: UUID
+#     customer_id: UUID
+#     customer_full_name: str
+#     customer_address: str
+#     customer_phone: str
+#     customer_cooler_count: int
+#     status: DeliveryStatus
+#     delivered_bottles: int | None
+#     payment_amount: Decimal | None
+#     payment_method: PaymentMethod | None = None
+#     payment_photo: str | None
+#     completed_at: datetime | None
+#     sequence: int | None
 
-    model_config = {"from_attributes": True}
+#     model_config = {"from_attributes": True}
 
 
 
-class RouteResponse(BaseModel):
+class RouteResponse(RouteCashSummary):
     id: UUID
     date: date_type
     status: RouteStatus
@@ -109,18 +121,14 @@ class RouteResponse(BaseModel):
     total_customers: int
     orders: list[OrderResponse]
 
-    model_config = {"from_attributes": True}
 
-
-
-class RouteListItem(BaseModel):
+class RouteListItem(RouteCashSummary):
     id: UUID
     date: date_type
     status: RouteStatus
     completed_count: int
     total_customers: int
 
-    model_config = {"from_attributes": True}
 
 
 class CustomerOrderInput(BaseModel):
@@ -158,11 +166,22 @@ class RouteFilters(BaseModel):
     date_to: date_type | None = None
 
 
-class AdminRouteListItem(RouteListItem):
-    driver_id: UUID
-    driver_full_name: str
+class AdminRouteListItem(RouteCashSummary):
+    id: UUID
+    date: date_type
+    status: RouteStatus
+    completed_count: int
+    total_customers: int
+    driver_id: UUID | None
+    driver_full_name: str | None
 
 
-class AdminRouteResponse(RouteResponse):
-    driver_id: UUID
-    driver_full_name: str
+class AdminRouteResponse(RouteCashSummary):
+    id: UUID
+    date: date_type
+    status: RouteStatus
+    completed_count: int
+    total_customers: int
+    orders: list[OrderResponse]
+    driver_id: UUID | None
+    driver_full_name: str | None

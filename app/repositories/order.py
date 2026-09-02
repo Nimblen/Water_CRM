@@ -4,7 +4,7 @@ from decimal import Decimal
 from uuid import UUID
 from app.db.models.payment import Payment
 from sqlalchemy import select, func, or_
-from sqlalchemy.orm import contains_eager
+from sqlalchemy.orm import contains_eager, joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.order import Order
@@ -34,36 +34,68 @@ class OrderRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    def _base_stmt(self, filters: OrderListFilters):
+
+    def _base_stmt(
+        self,
+        filters: OrderListFilters,
+    ):
         stmt = (
             select(Order)
             .join(Order.route)
             .join(Order.customer)
             .options(
-                contains_eager(Order.route),
-                contains_eager(Order.customer),
+                joinedload(Order.route)
+                    .joinedload(Route.driver),
+
+                joinedload(Order.customer),
+
+                selectinload(Order.payments),
             )
         )
 
         if filters.date_from:
-            stmt = stmt.where(Route.date >= filters.date_from)
+            stmt = stmt.where(
+                Route.date >= filters.date_from
+            )
+
         if filters.date_to:
-            stmt = stmt.where(Route.date <= filters.date_to)
+            stmt = stmt.where(
+                Route.date <= filters.date_to
+            )
+
         if filters.customer_id:
-            stmt = stmt.where(Order.customer_id == filters.customer_id)
+            stmt = stmt.where(
+                Order.customer_id == filters.customer_id
+            )
+
         if filters.driver_id:
-            stmt = stmt.where(Route.driver_id == filters.driver_id)
+            stmt = stmt.where(
+                Route.driver_id == filters.driver_id
+            )
+
         if filters.route_id:
-            stmt = stmt.where(Order.route_id == filters.route_id)
+            stmt = stmt.where(
+                Order.route_id == filters.route_id
+            )
+
         if filters.status:
-            stmt = stmt.where(Order.status == filters.status)
+            stmt = stmt.where(
+                Order.status == filters.status
+            )
+
         if filters.purpose:
-            stmt = stmt.where(Order.purpose == filters.purpose)
+            stmt = stmt.where(
+                Order.purpose == filters.purpose
+            )
+
         if filters.payment_method:
-            stmt = stmt.where(Order.payment_method == filters.payment_method)
+            stmt = stmt.where(
+                Order.payment_method == filters.payment_method
+            )
 
         if filters.search:
             search = f"%{filters.search}%"
+
             stmt = stmt.where(
                 or_(
                     Customer.full_name.ilike(search),
@@ -73,7 +105,6 @@ class OrderRepository:
             )
 
         return stmt
-
     async def get_list(
         self,
         pagination: PaginationParams,

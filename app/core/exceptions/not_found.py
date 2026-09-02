@@ -40,3 +40,8 @@ class OrderNotFoundError(NotFoundError):
 class CustomerNotFoundError(NotFoundError):
     code = "CUSTOMER_NOT_FOUND"
     message = "Customer not found"
+
+
+class ExpenseNotFoundError(NotFoundError):
+    code = "EXPENSE_NOT_FOUND"
+    message = "Expense not found"
