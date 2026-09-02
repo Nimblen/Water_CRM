@@ -31,5 +31,9 @@ celery_app.conf.update(
             "task": "app.tasks.route.rollover_route_statuses", 
             "schedule": crontab(hour=6, minute=0),
         },
+        "reset-today-trip-counts-daily": {
+            "task": "app.tasks.route.reset_today_trip_counts", 
+            "schedule": crontab(hour=0, minute=5),
+        },
     },
 )
