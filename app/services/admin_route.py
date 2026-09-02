@@ -11,7 +11,7 @@ from app.repositories.customer import CustomerRepository
 from app.core.exceptions.not_found import RouteNotFoundError, DriverNotFoundError, CustomerNotFoundError, OrderNotFoundError
 from app.core.exceptions.conflict import RouteAlreadyStartedError, RouteAlreadyCompletedError
 from app.core.exceptions.validation import InvalidUpdateFieldsError
-from app.core.constants import NotificationType, RouteStatus
+from app.core.constants import NotificationType, OrderPurpose, RouteStatus
 from app.schemas.route import (
     CreateRoute, UpdateRoute, RouteFilters,
     AdminRouteResponse, AdminRouteListItem, OrderResponse, CustomerOrderInput
@@ -41,9 +41,10 @@ class AdminRouteService:
         )
 
     async def create_route(self, data: CreateRoute) -> AdminRouteResponse:
-        driver = await self.driver_repo.get_by_id(data.driver_id)
-        if not driver:
-            raise DriverNotFoundError()
+        if data.driver_id is not None:
+            driver = await self.driver_repo.get_by_id(data.driver_id)
+            if not driver:
+                raise DriverNotFoundError()
         today = date.today()
         if data.date < today:
             raise InvalidUpdateFieldsError(
@@ -61,7 +62,7 @@ class AdminRouteService:
             customer = await self.customer_repo.get_by_id(customer_data.customer_id)
             if not customer or not customer.is_active:
                 raise CustomerNotFoundError()
-            await self.repo.add_customer(route.id, customer_data.customer_id, customer_data.order_purpose or OrderPurpose.DELIVERY_19L,  sequence=index)
+            await self.repo.add_customer(route.id, customer_data.customer_id, customer_data.order_purpose or OrderPurpose.DELIVERY_19L,  sequence=customer_data.sequence or index)
 
         await self.session.flush()
         route = await self.repo.get_by_id(route.id)

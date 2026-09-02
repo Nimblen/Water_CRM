@@ -132,6 +132,7 @@ class OrderRepository:
     async def add_payment(
         self,
         order_id: UUID,
+        customer_id: UUID,
         amount: Decimal,
         payment_method: PaymentMethod,
         note: str | None,
@@ -140,6 +141,7 @@ class OrderRepository:
     ) -> Payment:
         payment = Payment(
             order_id=order_id,
+            customer_id=customer_id,
             amount=amount,
             payment_method=payment_method,
             note=note,

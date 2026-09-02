@@ -2,6 +2,7 @@ from typing import Annotated
 from uuid import UUID
 from datetime import date as date_type, datetime
 from decimal import Decimal
+from app.core.exceptions.validation import PaymentAmountInvalidError
 from fastapi import Form, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from app.core.constants import DeliveryStatus, RouteStatus, PaymentMethod, OrderPurpose
@@ -26,35 +27,61 @@ class UpdateDeliveryStatus(BaseModel):
 
 
 class CompleteDelivery(BaseModel):
-    delivered_bottles: int
+    purpose: OrderPurpose | None = None
+    delivered_bottles: int = 0
+    returned_bottles: int = 0
+    damaged_bottles: int = 0
+    bottle_balance: int | None = None
+    bulk_5l_count: int = 0
+    bulk_5l_price: Decimal | None = None
+    bulk_10l_count: int = 0
+    bulk_10l_price: Decimal | None = None
+    picked_coolers: int = 0
+    picked_bottles: int = 0
     payment_amount: Decimal
     payment_method: PaymentMethod
-    bottle_balance: int | None = None
 
     @classmethod
     def as_form(
         cls,
-        delivered_bottles: Annotated[int, Form()],
-        payment_amount: Annotated[Decimal, Form()],
-        payment_method: Annotated[PaymentMethod, Form()],
-        bottle_balance: Annotated[int | None, Form()] = None,
+        purpose: Annotated[OrderPurpose | None, Form()] = None,
+        delivered_bottles: Annotated[int, Form(ge=0)] = 0,
+        returned_bottles: Annotated[int, Form(ge=0)] = 0,
+        damaged_bottles: Annotated[int, Form(ge=0)] = 0,
+        bottle_balance: Annotated[int | None, Form(ge=0)] = None,
+        bulk_5l_count: Annotated[int, Form(ge=0)] = 0,
+        bulk_5l_price: Annotated[Decimal | None, Form()] = None,
+        bulk_10l_count: Annotated[int, Form(ge=0)] = 0,
+        bulk_10l_price: Annotated[Decimal | None, Form()] = None,
+        picked_coolers: Annotated[int, Form(ge=0)] = 0,
+        picked_bottles: Annotated[int, Form(ge=0)] = 0,
+        payment_amount: Annotated[Decimal, Form(ge=0)] = Decimal("0"),
+        payment_method: Annotated[PaymentMethod, Form()] = ...,
     ) -> "CompleteDelivery":
         if payment_method == PaymentMethod.DEBT:
             if payment_amount != 0:
-                raise HTTPException(
-                    422, "payment_amount must be 0 when payment_method is 'debt'"
-                )
+                raise PaymentAmountInvalidError("payment_amount must be 0 when payment_method is 'debt'")
         elif payment_amount <= 0:
-            raise HTTPException(
-                422, f"payment_amount must be greater than 0 for payment_method '{payment_method}'"
+            raise PaymentAmountInvalidError(
+                f"payment_amount must be greater than 0 for payment_method '{payment_method}'"
             )
 
         return cls(
+            purpose=purpose,
             delivered_bottles=delivered_bottles,
+            returned_bottles=returned_bottles,
+            damaged_bottles=damaged_bottles,
+            bottle_balance=bottle_balance,
+            bulk_5l_count=bulk_5l_count,
+            bulk_5l_price=bulk_5l_price,
+            bulk_10l_count=bulk_10l_count,
+            bulk_10l_price=bulk_10l_price,
+            picked_coolers=picked_coolers,
+            picked_bottles=picked_bottles,
             payment_amount=payment_amount,
             payment_method=payment_method,
-            bottle_balance=bottle_balance,
         )
+
 class OrderResponse(BaseModel):
     id: UUID
     customer_id: UUID
@@ -99,10 +126,11 @@ class RouteListItem(BaseModel):
 class CustomerOrderInput(BaseModel):
     customer_id: UUID
     order_purpose: OrderPurpose = OrderPurpose.DELIVERY_19L
+    sequence: int | None = None
 
 
 class CreateRoute(BaseModel):
-    driver_id: UUID
+    driver_id: UUID | None = None
     date: date_type
     customer_orders: list[CustomerOrderInput] = Field(default_factory=list)
 

@@ -183,6 +183,7 @@ class OrderService:
         if delta != 0:
             await self.repo.add_payment(
                 order_id=order_id,
+                customer_id=order.customer_id,
                 amount=delta,
                 payment_method=payload.payment_method,
                 note=payload.note,

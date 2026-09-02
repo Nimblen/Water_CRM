@@ -34,21 +34,18 @@ async def update_delivery_status(
     await service.update_delivery_status(route_customer_id, driver_id, data)
 
 
-@router.post("/routes/customers/{route_customer_id}/complete", status_code=204)
+@router.post("/routes/orders/{order_id}/complete", status_code=204)
 async def complete_delivery(
-    route_customer_id: UUID,
+    order_id: UUID,
     data: Annotated[CompleteDelivery, Depends(CompleteDelivery.as_form)],
     driver_id: CurrentDriverIdDep,
-    user_id: CurrentDriverUserIdDep,
     service: DriverRouteServiceDep,
     idempotency_key: IdempotencyKeyDep,
     payment_photo: UploadFile | None = File(default=None),
 ):
-    await service.complete_delivery(
-        route_customer_id, driver_id, data, payment_photo, recorded_by_user_id=user_id
-    )
+    await service.complete_delivery(order_id=order_id, payload=data, photo=payment_photo, driver_id=driver_id)
     if idempotency_key:
         await service.idempotency_repo.save(
-            idempotency_key, endpoint="/driver/routes/customers/{route_customer_id}/complete",
+            idempotency_key, endpoint="/driver/routes/orders/{order_id}/complete",
             status_code=204, response_body={},
         )
