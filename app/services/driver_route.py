@@ -7,19 +7,20 @@ from app.core.exceptions.validation import BulkPriceRequiredError, DeliveryQuant
 from app.repositories.idempotency import IdempotencyRepository
 from app.repositories.order import OrderRepository
 from app.schemas.notification import NotificationEvent
+from app.schemas.order import order_to_response
 from app.services.customer_balance import CustomerBalanceService
 from app.services.notification import AdminNotificationService
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import UploadFile
 
-from app.repositories.route import RouteRepository
+from app.repositories.route import RouteRepository, _cash_fields
 from app.repositories.price_settings import PriceSettingsRepository
 from app.db.models.payment import Payment
 from app.db.models.route import Route
 from app.core.constants import DeliveryStatus, NotificationType, OrderPurpose, RouteStatus, PaymentMethod
 from app.core.exceptions.not_found import RouteNotFoundError, OrderNotFoundError
 from app.core.exceptions.conflict import InvalidDeliveryStatusError, OrderAlreadyCompletedError
-from app.services.storage import save_payment_photo
+from app.services.storage import save_image
 from app.schemas.route import (
     RouteResponse,
     OrderResponse,
@@ -45,6 +46,7 @@ class DriverRouteService:
 
     async def get_my_routes(self, driver_id: UUID) -> list[RouteListItem]:
         routes = await self.route_repo.get_by_driver(driver_id, DRIVER_VISIBLE_STATUSES)
+        cash_stats = await self.route_repo.get_cash_stats([r.id for r in routes])
         return [
             RouteListItem(
                 id=r.id,
@@ -52,6 +54,7 @@ class DriverRouteService:
                 status=r.status,
                 completed_count=r.completed_count,
                 total_customers=len(r.orders),
+                **_cash_fields(cash_stats[r.id]),
             )
             for r in routes
         ]
@@ -60,25 +63,13 @@ class DriverRouteService:
         route = await self.route_repo.get_by_id_for_driver(route_id, driver_id, DRIVER_VISIBLE_STATUSES)
         if not route:
             raise RouteNotFoundError()
+        cash_stats = await self.route_repo.get_cash_stats([route_id])
 
-        customers = [
-            OrderResponse(
-                id=rc.id,
-                customer_id=rc.customer_id,
-                customer_full_name=rc.customer.full_name,
-                customer_address=rc.customer.address,
-                customer_phone=rc.customer.phone,
-                customer_cooler_count=rc.customer.cooler_count,
-                status=rc.status,
-                delivered_bottles=rc.delivered_bottles,
-                payment_amount=rc.payment.amount if rc.payment else Decimal("0"),
-                payment_method=rc.payment_method,
-                payment_photo=rc.payment.photo_url if rc.payment else None,
-                completed_at=rc.completed_at,
-                sequence=rc.sequence,
-            )
-            for rc in route.orders
-        ]
+        price_settings = None
+        if any(rc.completed_at is None for rc in route.orders):
+            price_settings = await self.price_repo.get_current()
+
+        customers = [order_to_response(rc, price_settings) for rc in route.orders]
 
         return RouteResponse(
             id=route.id,
@@ -87,8 +78,8 @@ class DriverRouteService:
             completed_count=route.completed_count,
             total_customers=len(customers),
             orders=customers,
+            **_cash_fields(cash_stats[route_id]),
         )
-
     async def update_delivery_status(
         self,
         route_customer_id: UUID,
@@ -143,7 +134,7 @@ class DriverRouteService:
         purpose = payload.purpose or order.purpose
         _validate_completion_by_purpose(payload, purpose)
 
-        photo_url = await save_payment_photo(photo) if photo is not None else None
+        photo_url = await save_image(photo, directory="payments") if photo is not None else None
 
         if purpose == OrderPurpose.DELIVERY_19L:
             order.delivered_bottles = payload.delivered_bottles
@@ -161,6 +152,7 @@ class DriverRouteService:
 
         if payload.bottle_balance is not None:
             order.customer.bottle_balance = payload.bottle_balance
+            order.bottle_balance_after = payload.bottle_balance
         price_settings = await self.price_repo.get_current()
         price = order.customer.custom_water_price or price_settings.water_price
         fine = price_settings.damaged_bottle_fine
@@ -178,7 +170,6 @@ class DriverRouteService:
         order.status = DeliveryStatus.DELIVERED
         order.completed_at = datetime.now(timezone.utc)
         order.payment_method = payload.payment_method
-        order.order_amount = payload.payment_amount
 
         if payload.payment_method != PaymentMethod.DEBT:
             await self.order_repo.add_payment(

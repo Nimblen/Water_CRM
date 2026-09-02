@@ -1,14 +1,42 @@
+from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 import uuid
-from sqlalchemy import select, func, nulls_last
+from app.db.models.payment import Payment
+from sqlalchemy import select, func, nulls_last, case
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.route import Route
+from app.db.models.route import Route, RouteExpenses
 from app.db.models.order import  Order
-from app.core.constants import DeliveryStatus, RouteStatus, OrderPurpose
+from app.core.constants import DeliveryStatus, PaymentMethod, RouteStatus, OrderPurpose
 from app.schemas.route import RouteFilters
 from app.schemas.common import PaginationParams
+
+
+def _cash_fields(stats: "RouteCashStats") -> dict:
+    return {
+        "cash_collected": stats.cash_collected,
+        "cashless_collected": stats.cashless_collected,
+        "debt_amount": stats.debt_amount,
+        "expenses_total": stats.expenses_total,
+        "cash_balance": stats.cash_balance,
+    }
+@dataclass
+class RouteCashStats:
+    cash_collected: Decimal = Decimal("0.00")
+    cashless_collected: Decimal = Decimal("0.00")
+    order_amount_total: Decimal = Decimal("0.00")
+    expenses_total: Decimal = Decimal("0.00")
+
+    @property
+    def debt_amount(self) -> Decimal:
+        return self.order_amount_total - (self.cash_collected + self.cashless_collected)
+
+    @property
+    def cash_balance(self) -> Decimal:
+        return self.cash_collected - self.expenses_total
+
 
 
 class RouteRepository:
@@ -37,7 +65,7 @@ class RouteRepository:
             .where(Route.id == route_id, Route.driver_id == driver_id)
             .options(
                 selectinload(Route.orders).selectinload(Order.customer),
-                selectinload(Route.orders).selectinload(Order.payment),
+                selectinload(Route.orders).selectinload(Order.payments),
             )
         )
         if statuses:
@@ -94,7 +122,7 @@ class RouteRepository:
             .options(
                 selectinload(Route.driver),
                 selectinload(Route.orders).selectinload(Order.customer),
-                selectinload(Route.orders).selectinload(Order.payment),
+                selectinload(Route.orders).selectinload(Order.payments),
             )
         )
         result = await self.session.execute(stmt)
@@ -155,3 +183,52 @@ class RouteRepository:
         stmt = stmt.where(Route.driver_id == driver_id) if driver_id else stmt.where(Route.driver_id.is_(None))
         result = await self.session.execute(stmt)
         return result.scalars().first()
+    
+
+    async def get_cash_stats(self, route_ids: list[uuid.UUID]) -> dict[uuid.UUID, RouteCashStats]:
+        stats = {rid: RouteCashStats() for rid in route_ids}
+        if not route_ids:
+            return stats
+        cash_case = case((Payment.payment_method == PaymentMethod.CASH, Payment.amount), else_=0)
+        cashless_case = case(
+            (Payment.payment_method.in_([PaymentMethod.CARD, PaymentMethod.TRANSFER]), Payment.amount),
+            else_=0,
+        )
+        payments_stmt = (
+            select(
+                Order.route_id.label("route_id"),
+                func.coalesce(func.sum(cash_case), 0).label("cash_collected"),
+                func.coalesce(func.sum(cashless_case), 0).label("cashless_collected"),
+            )
+            .select_from(Order)
+            .join(Payment, Payment.order_id == Order.id)
+            .where(Order.route_id.in_(route_ids))
+            .group_by(Order.route_id)
+        )
+        for row in (await self.session.execute(payments_stmt)).all():
+            stats[row.route_id].cash_collected = row.cash_collected
+            stats[row.route_id].cashless_collected = row.cashless_collected
+
+        order_amount_stmt = (
+            select(
+                Order.route_id.label("route_id"),
+                func.coalesce(func.sum(Order.order_amount), 0).label("order_amount_total"),
+            )
+            .where(Order.route_id.in_(route_ids))
+            .group_by(Order.route_id)
+        )
+        for row in (await self.session.execute(order_amount_stmt)).all():
+            stats[row.route_id].order_amount_total = row.order_amount_total
+
+        expenses_stmt = (
+            select(
+                RouteExpenses.route_id.label("route_id"),
+                func.coalesce(func.sum(RouteExpenses.amount), 0).label("expenses_total"),
+            )
+            .where(RouteExpenses.route_id.in_(route_ids))
+            .group_by(RouteExpenses.route_id)
+        )
+        for row in (await self.session.execute(expenses_stmt)).all():
+            stats[row.route_id].expenses_total = row.expenses_total
+
+        return stats

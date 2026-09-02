@@ -1,5 +1,6 @@
 from datetime import date, datetime, timezone
 from uuid import UUID
+from app.repositories.price_settings import PriceSettingsRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import UploadFile
 from app.core.constants import DeliveryStatus, NotificationType, RouteStatus
@@ -9,7 +10,7 @@ from app.core.exceptions.validation import MoveDateInPastError
 from app.repositories.route import RouteRepository
 from app.services.customer_balance import CustomerBalanceService
 from app.services.notification import AdminNotificationService, DriverNotificationService
-from app.services.storage import save_payment_photo
+from app.services.storage import save_image
 
 from app.repositories.order import OrderRepository, OrderListFilters
 from app.schemas.order import (
@@ -18,6 +19,7 @@ from app.schemas.order import (
     DriverOrderFilters,
     MoveOrder,
     OrderResponse,
+    order_to_response,
 )
 from app.schemas.common import PaginationParams, PaginatedResponse, build_paginated_response
 from app.core.exceptions.permissions import OrderAccessDeniedError
@@ -29,6 +31,7 @@ class OrderService:
         self.repo = OrderRepository(session)
         self.route_repo = RouteRepository(session)
         self.balance_service = CustomerBalanceService(session)
+        self.price_repo = PriceSettingsRepository(session)
         self.driver_notifications = driver_notifications
         self.admin_notifications = admin_notifications
 
@@ -37,8 +40,9 @@ class OrderService:
     ) -> PaginatedResponse[OrderResponse]:
         internal_filters = OrderListFilters(**filters.model_dump())
         orders, total = await self.repo.get_list(pagination, internal_filters)
+        price_settings = await self.price_repo.get_current()
         return build_paginated_response(
-            items=[OrderResponse.model_validate(o) for o in orders],
+            items=[order_to_response(o, price_settings) for o in orders],
             total=total,
             pagination=pagination,
         )
@@ -47,7 +51,8 @@ class OrderService:
         order = await self.repo.get_by_id(order_id)
         if not order:
             raise OrderNotFoundError()
-        return OrderResponse.model_validate(order)
+        price_settings = await self.price_repo.get_current()
+        return order_to_response(order, price_settings)
 
     async def get_driver_orders(
         self,
@@ -60,8 +65,9 @@ class OrderService:
             driver_id=driver_id,
         )
         orders, total = await self.repo.get_list(pagination, internal_filters)
+        price_settings = await self.price_repo.get_current()
         return build_paginated_response(
-            items=[OrderResponse.model_validate(o) for o in orders],
+            items=[order_to_response(o, price_settings) for o in orders],
             total=total,
             pagination=pagination,
         )
@@ -72,7 +78,8 @@ class OrderService:
             raise OrderNotFoundError()
         if order.route.driver_id != driver_id:
             raise OrderAccessDeniedError()
-        return OrderResponse.model_validate(order)
+        price_settings = await self.price_repo.get_current()
+        return order_to_response(order, price_settings)
     
 
     async def move_order(self, order_id: UUID, payload: MoveOrder) -> None:
@@ -178,7 +185,7 @@ class OrderService:
         paid_amount = await self.repo.get_total_paid(order_id)
         delta = payload.amount - paid_amount
 
-        photo_url = await save_payment_photo(photo) if photo is not None else None
+        photo_url = await save_image(photo, directory="payments") if photo is not None else None
 
         if delta != 0:
             await self.repo.add_payment(

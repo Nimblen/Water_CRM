@@ -107,7 +107,7 @@ class ReportRepository:
             .options(
                 selectinload(Order.customer),
                 selectinload(Order.route),
-                selectinload(Order.payment),
+                selectinload(Order.payments),
             )
             .order_by(Order.completed_at)
         )

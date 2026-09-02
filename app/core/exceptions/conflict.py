@@ -76,3 +76,9 @@ class OrderAlreadyCompletedError(ConflictError):
 class OrderNotCompletedError(ConflictError):
     code = "ORDER_NOT_COMPLETED"
     message = "Order not completed"
+
+
+
+class RouteNotInProgressError(ConflictError):
+    code = "ROUTE_NOT_IN_PROGRESS"
+    message = "Route not in progress"
