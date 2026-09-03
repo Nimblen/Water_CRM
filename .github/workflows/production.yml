@@ -20,15 +20,21 @@ jobs:
           PROD_HOST: ${{ secrets.PROD_HOST }}
           PROD_USER: ${{ secrets.PROD_USER }}
           PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+
         run: |
-          mkdir -p ~/.ssh
+          set -e
 
-          echo "$PROD_SSH_KEY" > ~/.ssh/prod_key
-          chmod 600 ~/.ssh/prod_key
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
 
-          ssh-keyscan -H "$PROD_HOST" >> ~/.ssh/known_hosts
+          printf '%s\n' "$PROD_SSH_KEY" > "$HOME/.ssh/prod_key"
+          chmod 600 "$HOME/.ssh/prod_key"
+
+          ssh-keyscan -H "$PROD_HOST" >> "$HOME/.ssh/known_hosts"
+          chmod 644 "$HOME/.ssh/known_hosts"
 
           ssh \
-            -i ~/.ssh/prod_key \
+            -i "$HOME/.ssh/prod_key" \
+            -o StrictHostKeyChecking=yes \
             "$PROD_USER@$PROD_HOST" \
             "/opt/millwater/scripts/deploy.sh"
