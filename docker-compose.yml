@@ -105,6 +105,8 @@ services:
 
 volumes:
   postgres_data:
+    external: true
+    name: water_crm_postgres_data
   redis_data:
   uploads_data:
   certbot-www:
