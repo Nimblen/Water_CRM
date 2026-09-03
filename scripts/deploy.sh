@@ -31,6 +31,10 @@ echo "Starting services..."
 
 docker compose up -d --remove-orphans
 
+echo "Recreating nginx to refresh Docker upstream..."
+
+docker compose up -d --force-recreate nginx
+
 echo "Removing unused images..."
 
 docker image prune -f
