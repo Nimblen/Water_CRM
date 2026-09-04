@@ -13,5 +13,5 @@ class PaymentResponse(BaseModel):
     payment_method: PaymentMethod
     note: str | None
     photo_url: str | None
-    recorded_by_user_id: UUID
+    recorded_by_user_id: UUID | None = None
     created_at: datetime
