@@ -4,7 +4,7 @@ from decimal import Decimal
 from uuid import UUID
 from app.db.models.payment import Payment
 from sqlalchemy import select, func, or_
-from sqlalchemy.orm import contains_eager, joinedload, selectinload
+from sqlalchemy.orm import contains_eager, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.order import Order
@@ -27,75 +27,48 @@ class OrderListFilters:
     search: str | None = None
 
 
-
-
-
 class OrderRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-
-    def _base_stmt(
-        self,
-        filters: OrderListFilters,
-    ):
+    def _base_stmt(self, filters: OrderListFilters):
         stmt = (
             select(Order)
             .join(Order.route)
             .join(Order.customer)
             .options(
-                joinedload(Order.route)
-                    .joinedload(Route.driver),
-
-                joinedload(Order.customer),
-
+                contains_eager(Order.route).joinedload(Route.driver),
+                contains_eager(Order.customer),
                 selectinload(Order.payments),
             )
         )
 
         if filters.date_from:
-            stmt = stmt.where(
-                Route.date >= filters.date_from
-            )
+            stmt = stmt.where(Route.date >= filters.date_from)
 
         if filters.date_to:
-            stmt = stmt.where(
-                Route.date <= filters.date_to
-            )
+            stmt = stmt.where(Route.date <= filters.date_to)
 
         if filters.customer_id:
-            stmt = stmt.where(
-                Order.customer_id == filters.customer_id
-            )
+            stmt = stmt.where(Order.customer_id == filters.customer_id)
 
         if filters.driver_id:
-            stmt = stmt.where(
-                Route.driver_id == filters.driver_id
-            )
+            stmt = stmt.where(Route.driver_id == filters.driver_id)
 
         if filters.route_id:
-            stmt = stmt.where(
-                Order.route_id == filters.route_id
-            )
+            stmt = stmt.where(Order.route_id == filters.route_id)
 
         if filters.status:
-            stmt = stmt.where(
-                Order.status == filters.status
-            )
+            stmt = stmt.where(Order.status == filters.status)
 
         if filters.purpose:
-            stmt = stmt.where(
-                Order.purpose == filters.purpose
-            )
+            stmt = stmt.where(Order.purpose == filters.purpose)
 
         if filters.payment_method:
-            stmt = stmt.where(
-                Order.payment_method == filters.payment_method
-            )
+            stmt = stmt.where(Order.payment_method == filters.payment_method)
 
         if filters.search:
             search = f"%{filters.search}%"
-
             stmt = stmt.where(
                 or_(
                     Customer.full_name.ilike(search),
@@ -105,25 +78,61 @@ class OrderRepository:
             )
 
         return stmt
+
+    def _count_stmt(self, filters: OrderListFilters):
+        stmt = (
+            select(func.count(func.distinct(Order.id)))
+            .select_from(Order)
+            .join(Order.route)
+            .join(Order.customer)
+        )
+
+        if filters.date_from:
+            stmt = stmt.where(Route.date >= filters.date_from)
+        if filters.date_to:
+            stmt = stmt.where(Route.date <= filters.date_to)
+        if filters.customer_id:
+            stmt = stmt.where(Order.customer_id == filters.customer_id)
+        if filters.driver_id:
+            stmt = stmt.where(Route.driver_id == filters.driver_id)
+        if filters.route_id:
+            stmt = stmt.where(Order.route_id == filters.route_id)
+        if filters.status:
+            stmt = stmt.where(Order.status == filters.status)
+        if filters.purpose:
+            stmt = stmt.where(Order.purpose == filters.purpose)
+        if filters.payment_method:
+            stmt = stmt.where(Order.payment_method == filters.payment_method)
+        if filters.search:
+            search = f"%{filters.search}%"
+            stmt = stmt.where(
+                or_(
+                    Customer.full_name.ilike(search),
+                    Customer.phone.ilike(search),
+                    Customer.address.ilike(search),
+                )
+            )
+
+        return stmt
+
     async def get_list(
         self,
         pagination: PaginationParams,
         filters: OrderListFilters,
     ) -> tuple[list[Order], int]:
-        stmt = self._base_stmt(filters)
-
-        count_stmt = select(func.count()).select_from(stmt.subquery())
+        count_stmt = self._count_stmt(filters)
         total = (await self.session.execute(count_stmt)).scalar_one()
 
         stmt = (
-            stmt.order_by(Route.date.desc(), Order.sequence.asc())
+            self._base_stmt(filters)
+            .order_by(Route.date.desc(), Order.sequence.asc())
             .offset(pagination.offset)
             .limit(pagination.page_size)
         )
 
         result = await self.session.execute(stmt)
         orders = result.unique().scalars().all()
-        return orders, total
+        return list(orders), total
 
     async def get_by_id(self, order_id: UUID) -> Order | None:
         stmt = (
@@ -132,31 +141,30 @@ class OrderRepository:
             .join(Order.route)
             .join(Order.customer)
             .options(
-                contains_eager(Order.route),
+                contains_eager(Order.route).joinedload(Route.driver),
                 contains_eager(Order.customer),
+                selectinload(Order.payments),
             )
         )
         result = await self.session.execute(stmt)
         return result.unique().scalar_one_or_none()
-    
 
     async def get_max_sequence(self, route_id: UUID) -> int | None:
         result = await self.session.execute(
             select(func.max(Order.sequence)).where(Order.route_id == route_id)
         )
         return result.scalar_one_or_none()
-    #TODO: убрать в другое место 
+
     async def count_by_route(self, route_id: UUID) -> int:
         result = await self.session.execute(
             select(func.count()).select_from(Order).where(Order.route_id == route_id)
         )
         return result.scalar_one()
-    
-
 
     async def get_total_paid(self, order_id: UUID) -> Decimal:
         result = await self.session.execute(
-            select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.order_id == order_id)
+            select(func.coalesce(func.sum(Payment.amount), Decimal("0")))
+            .where(Payment.order_id == order_id)
         )
         return result.scalar_one()
 
