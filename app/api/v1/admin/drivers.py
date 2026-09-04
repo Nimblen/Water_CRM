@@ -2,7 +2,8 @@ from uuid import UUID
 from fastapi import APIRouter
 
 from app.dependencies.user import CurrentAdminDep
-from app.dependencies.driver import DriverServiceDep, DriverFiltersDep, PaginationDep
+from app.dependencies.driver import DriverServiceDep, DriverFiltersDep
+from app.dependencies.common import PaginationDep
 from app.schemas.user import CreateDriver, DriverResponse, UpdateDriver
 from app.schemas.common import PaginatedResponse
 from app.dependencies.idempotency import IdempotencyKeyDep

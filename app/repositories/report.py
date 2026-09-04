@@ -1,121 +1,100 @@
-from sqlalchemy import select, func
-from sqlalchemy.orm import selectinload
-from sqlalchemy.ext.asyncio import AsyncSession
 from decimal import Decimal
-from app.db.models.route import Route
+from uuid import UUID
+from datetime import date
+from sqlalchemy import select, func
+
 from app.db.models.order import Order
-from app.db.models.payment import Payment
+from app.db.models.route import Route, RouteExpenses
 from app.db.models.customer import Customer
 from app.db.models.driver import Driver
 from app.core.constants import DeliveryStatus
-from app.schemas.report import ReportExportFilters, ReportPeriod
+from app.schemas.report import ReportDateFilter
 
 
 class ReportRepository:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session):
         self.session = session
 
-    async def count_routes(self, period: ReportPeriod) -> int:
-        stmt = select(func.count(Route.id)).where(
-            Route.date >= period.date_from,
-            Route.date <= period.date_to,
-        )
-        result = await self.session.execute(stmt)
-        return result.scalar_one()
-
-    async def count_deliveries_by_status(self, period: ReportPeriod, status: DeliveryStatus) -> int:
-        stmt = select(func.count(Order.id)).where(
-            Order.status == status,
-            Order.completed_at.isnot(None),
-            func.date(Order.completed_at) >= period.date_from,
-            func.date(Order.completed_at) <= period.date_to,
-        )
-        result = await self.session.execute(stmt)
-        return result.scalar_one()
-
-    async def sum_revenue(self, period: ReportPeriod) -> "Decimal":
-        stmt = select(func.coalesce(func.sum(Payment.amount), 0)).where(
-            func.date(Payment.created_at) >= period.date_from,
-            func.date(Payment.created_at) <= period.date_to,
-        )
-        result = await self.session.execute(stmt)
-        return result.scalar_one()
-
-    async def sum_total_debt(self) -> "Decimal":
-        stmt = select(func.coalesce(func.sum(Customer.debt), 0))
-        result = await self.session.execute(stmt)
-        return result.scalar_one()
-
-    async def get_drivers_report(self, period: ReportPeriod) -> list[dict]:
-        # маршруты и выручка по каждому водителю за период
-        routes_stmt = (
-            select(
-                Driver.id.label("driver_id"),
-                Driver.full_name.label("driver_full_name"),
-                func.count(func.distinct(Route.id)).label("routes_count"),
-            )
-            .join(Route, Route.driver_id == Driver.id)
-            .where(Route.date >= period.date_from, Route.date <= period.date_to)
-            .group_by(Driver.id, Driver.full_name)
-        )
-        routes_result = await self.session.execute(routes_stmt)
-        routes_rows = {row.driver_id: row for row in routes_result.all()}
-
-        deliveries_stmt = (
-            select(
-                Driver.id.label("driver_id"),
-                func.count(Order.id).label("completed_deliveries_count"),
-                func.coalesce(func.sum(Payment.amount), 0).label("total_revenue"),
-            )
-            .join(Route, Route.driver_id == Driver.id)
-            .join(Order, Order.route_id == Route.id)
-            .join(Payment, Payment.route_customer_id == Order.id)
-            .where(
-                Order.status == DeliveryStatus.DELIVERED,
-                Order.completed_at.isnot(None),
-                func.date(Order.completed_at) >= period.date_from,
-                func.date(Order.completed_at) <= period.date_to,
-            )
-            .group_by(Driver.id)
-        )
-        deliveries_result = await self.session.execute(deliveries_stmt)
-        deliveries_rows = {row.driver_id: row for row in deliveries_result.all()}
-
-        driver_ids = set(routes_rows) | set(deliveries_rows)
-        report = []
-        for driver_id in driver_ids:
-            r = routes_rows.get(driver_id)
-            d = deliveries_rows.get(driver_id)
-            report.append({
-                "driver_id": driver_id,
-                "driver_full_name": r.driver_full_name if r else None,
-                "routes_count": r.routes_count if r else 0,
-                "completed_deliveries_count": d.completed_deliveries_count if d else 0,
-                "total_revenue": d.total_revenue if d else 0,
-            })
-        return report
-    
-    async def get_deliveries_for_export(self, filters: ReportExportFilters) -> list[Order]:
+    async def get_driver_report_rows(self, filters: ReportDateFilter) -> list[dict]:
         stmt = (
-            select(Order)
+            select(Order, Route, Driver)
+            .join(Route, Order.route_id == Route.id)
+            .join(Driver, Route.driver_id == Driver.id)
             .where(
+                Route.date >= filters.date_from,
+                Route.date <= filters.date_to,
                 Order.status == DeliveryStatus.DELIVERED,
-                Order.completed_at.isnot(None),
-                func.date(Order.completed_at) >= filters.date_from,
-                func.date(Order.completed_at) <= filters.date_to,
             )
-            .options(
-                selectinload(Order.customer),
-                selectinload(Order.route),
-                selectinload(Order.payment),
-            )
-            .order_by(Order.completed_at)
         )
         if filters.driver_id:
-                stmt = stmt.join(Route, Order.route_id == Route.id).where(
-                    Route.driver_id == filters.driver_id
-                )
+            stmt = stmt.where(Route.driver_id == filters.driver_id)
 
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
-    
+        rows = (await self.session.execute(stmt)).all()
+
+        route_ids = list({r.Route.id for r in rows})
+        expenses_by_route = await self._get_expenses_by_route(route_ids)
+
+        result = []
+        for row in rows:
+            order, route, driver = row.Order, row.Route, row.Driver
+            result.append({
+                "order": order, "route": route, "driver": driver,
+                "route_expenses_total": expenses_by_route.get(route.id, Decimal("0.00")),
+            })
+        return result
+
+    async def _get_expenses_by_route(self, route_ids: list[UUID]) -> dict[UUID, Decimal]:
+        if not route_ids:
+            return {}
+        stmt = (
+            select(RouteExpenses.route_id, func.coalesce(func.sum(RouteExpenses.amount), 0))
+            .where(RouteExpenses.route_id.in_(route_ids))
+            .group_by(RouteExpenses.route_id)
+        )
+        return {row[0]: row[1] for row in (await self.session.execute(stmt)).all()}
+
+    async def get_customer_report_rows(self, filters: ReportDateFilter) -> list[dict]:
+        # Заказы за период — для агрегатов "куплено за срок"
+        orders_stmt = (
+            select(
+                Order.customer_id,
+                func.coalesce(func.sum(Order.bulk_5l_count + Order.bulk_10l_count), 0).label("bulk_qty"),
+                func.coalesce(func.sum(Order.damaged_bottles), 0).label("damaged"),
+                func.coalesce(func.sum(Order.delivered_bottles), 0).label("delivered"),
+                func.coalesce(func.sum(Order.order_amount), 0).label("realization"),
+            )
+            .join(Route, Order.route_id == Route.id)
+            .where(
+                Route.date >= filters.date_from,
+                Route.date <= filters.date_to,
+                Order.status == DeliveryStatus.DELIVERED,
+            )
+            .group_by(Order.customer_id)
+        )
+        if filters.driver_id:
+            orders_stmt = orders_stmt.where(Route.driver_id == filters.driver_id)
+
+        aggregates = {row.customer_id: row for row in (await self.session.execute(orders_stmt)).all()}
+
+        customers_stmt = select(Customer).where(Customer.id.in_(aggregates.keys()))
+        customers = (await self.session.execute(customers_stmt)).scalars().all()
+
+        return [{"customer": c, "agg": aggregates[c.id]} for c in customers]
+
+    async def get_general_report_rows(self, filters: ReportDateFilter) -> list[dict]:
+        stmt = (
+            select(Order, Route, Driver, Customer)
+            .join(Route, Order.route_id == Route.id)
+            .join(Driver, Route.driver_id == Driver.id)
+            .join(Customer, Order.customer_id == Customer.id)
+            .where(
+                Route.date >= filters.date_from,
+                Route.date <= filters.date_to,
+                Order.status == DeliveryStatus.DELIVERED,
+            )
+        )
+        if filters.driver_id:
+            stmt = stmt.where(Route.driver_id == filters.driver_id)
+
+        rows = (await self.session.execute(stmt)).all()
+        return [{"order": r.Order, "route": r.Route, "driver": r.Driver, "customer": r.Customer} for r in rows]

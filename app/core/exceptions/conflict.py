@@ -66,3 +66,19 @@ class PasswordNotSetError(ConflictError):
 class BothBalancesSetError(ConflictError):
     code = "BOTH_BALANCES_SET"
     message = "Both balances set"
+
+
+class OrderAlreadyCompletedError(ConflictError):
+    code = "ORDER_ALREADY_COMPLETED"
+    message = "Order already completed"
+
+
+class OrderNotCompletedError(ConflictError):
+    code = "ORDER_NOT_COMPLETED"
+    message = "Order not completed"
+
+
+
+class RouteNotInProgressError(ConflictError):
+    code = "ROUTE_NOT_IN_PROGRESS"
+    message = "Route not in progress"

@@ -1,3 +1,4 @@
+from decimal import Decimal
 from uuid import UUID
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -68,7 +69,27 @@ class CustomerBalanceAdjustmentsRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create(self, adjustment: CustomerBalanceAdjustments) -> CustomerBalanceAdjustments:
-        self.session.add(adjustment)
-        await self.session.flush()
-        return adjustment
+    async def create(
+            self,
+            *,
+            customer_id: UUID,
+            user_id: UUID,
+            debt_before: Decimal,
+            debt_after: Decimal,
+            prepayment_before: Decimal,
+            prepayment_after: Decimal,
+            reason: str | None,
+        ) -> CustomerBalanceAdjustments:
+
+            adjustment = CustomerBalanceAdjustments(
+                customer_id=customer_id,
+                user_id=user_id,
+                debt_before=debt_before,
+                debt_after=debt_after,
+                prepayment_before=prepayment_before,
+                prepayment_after=prepayment_after,
+                reason=reason,
+            )
+
+            self.session.add(adjustment)
+            return adjustment

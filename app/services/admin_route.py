@@ -2,19 +2,21 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 from app.db.models.route import Route
+from app.repositories.price_settings import PriceSettingsRepository
+from app.schemas.order import order_to_response
 from app.services.notification import DriverNotificationService
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.repositories.route import RouteRepository
+from app.repositories.route import RouteCashStats, RouteRepository, _cash_fields
 from app.repositories.driver import DriverRepository
 from app.repositories.customer import CustomerRepository
 from app.core.exceptions.not_found import RouteNotFoundError, DriverNotFoundError, CustomerNotFoundError, OrderNotFoundError
 from app.core.exceptions.conflict import RouteAlreadyStartedError, RouteAlreadyCompletedError
 from app.core.exceptions.validation import InvalidUpdateFieldsError
-from app.core.constants import NotificationType, RouteStatus
+from app.core.constants import NotificationType, OrderPurpose, RouteStatus
 from app.schemas.route import (
     CreateRoute, UpdateRoute, RouteFilters,
-    AdminRouteResponse, AdminRouteListItem, OrderResponse,
+    AdminRouteResponse, AdminRouteListItem, OrderResponse, CustomerOrderInput
 )
 from app.schemas.common import PaginationParams, PaginatedResponse, build_paginated_response
 from app.repositories.idempotency import IdempotencyRepository
@@ -28,6 +30,7 @@ class AdminRouteService:
         self.repo = RouteRepository(session)
         self.driver_repo = DriverRepository(session)
         self.customer_repo = CustomerRepository(session)
+        self.price_repo = PriceSettingsRepository(session)
         self.idempotency_repo = IdempotencyRepository(session)
         self.driver_notifications = driver_notifications
 
@@ -41,9 +44,10 @@ class AdminRouteService:
         )
 
     async def create_route(self, data: CreateRoute) -> AdminRouteResponse:
-        driver = await self.driver_repo.get_by_id(data.driver_id)
-        if not driver:
-            raise DriverNotFoundError()
+        if data.driver_id is not None:
+            driver = await self.driver_repo.get_by_id(data.driver_id)
+            if not driver:
+                raise DriverNotFoundError()
         today = date.today()
         if data.date < today:
             raise InvalidUpdateFieldsError(
@@ -57,26 +61,29 @@ class AdminRouteService:
         )
         route = await self.repo.create(data.driver_id, data.date, status)
         # TODO: Оптимизировать n + 1 запросы
-        for index, customer_id in enumerate(data.customer_ids, start=1):
-            customer = await self.customer_repo.get_by_id(customer_id)
+        for index, customer_data in enumerate(data.customer_orders, start=1):
+            customer = await self.customer_repo.get_by_id(customer_data.customer_id)
             if not customer or not customer.is_active:
                 raise CustomerNotFoundError()
-            await self.repo.add_customer(route.id, customer_id, sequence=index)
+            await self.repo.add_customer(route.id, customer_data.customer_id, customer_data.order_purpose or OrderPurpose.DELIVERY_19L,  sequence=customer_data.sequence or index)
 
         await self.session.flush()
         route = await self.repo.get_by_id(route.id)
-        return self._to_response(route)
+        cash_stats = await self.repo.get_cash_stats([route.id])
+        return await self._to_response(route, cash_stats[route.id])
 
     async def get_route(self, route_id: UUID) -> AdminRouteResponse:
         route = await self.repo.get_by_id(route_id)
+        cash_stats = await self.repo.get_cash_stats([route_id])
         if not route:
             raise RouteNotFoundError()
-        return self._to_response(route)
+        return await self._to_response(route, cash_stats[route_id])
 
     async def get_routes(
         self, pagination: PaginationParams, filters: RouteFilters
     ) -> PaginatedResponse[AdminRouteListItem]:
         routes, total = await self.repo.get_list(pagination, filters)
+        cash_stats = await self.repo.get_cash_stats([r.id for r in routes])
         items = [
             AdminRouteListItem(
                 id=r.id,
@@ -86,6 +93,7 @@ class AdminRouteService:
                 total_customers=len(r.orders),
                 driver_id=r.driver_id,
                 driver_full_name=r.driver.full_name,
+                **_cash_fields(cash_stats[r.id]),
             )
             for r in routes
         ]
@@ -95,7 +103,7 @@ class AdminRouteService:
         route = await self.repo.get_by_id(route_id)
         if not route:
             raise RouteNotFoundError()
-
+        cash_stats = await self.repo.get_cash_stats([route_id])
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(route, field, value)
@@ -107,7 +115,7 @@ class AdminRouteService:
             {"route_id": str(route.id), "changed_fields": list(update_data.keys())},
         )
         await self.session.refresh(route)
-        return self._to_response(route)
+        return await self._to_response(route, cash_stats[route_id])
 
     async def assign_driver(self, route_id: UUID, driver_id: UUID) -> None:
         route = await self.repo.get_by_id(route_id)
@@ -121,21 +129,21 @@ class AdminRouteService:
         route.driver_id = driver_id
         await self.session.flush()
 
-    async def add_customer(self, route_id: UUID, customer_id: UUID, sequence: int | None = None) -> None:
+    async def add_customer(self, route_id: UUID, customer_data: CustomerOrderInput, sequence: int | None = None) -> None:
         route = await self.repo.get_by_id(route_id)
         if not route:
             raise RouteNotFoundError()
-        customer = await self.customer_repo.get_by_id(customer_id)
+        customer = await self.customer_repo.get_by_id(customer_data.customer_id)
         if not customer or not customer.is_active:
             raise CustomerNotFoundError()
-        await self.repo.add_customer(route_id, customer_id, sequence)
+        await self.repo.add_customer(route_id, customer_data.customer_id, customer_data.order_purpose or OrderPurpose.DELIVERY_19L, sequence)
         await self.session.flush()
         await self._notify_driver_if_in_progress(
             route,
             NotificationType.CUSTOMER_ADDED,
             {
                 "route_id": str(route.id),
-                "customer_id": str(customer_id),
+                "customer_id": str(customer_data.customer_id),
                 "customer_full_name": customer.full_name,
                 "customer_address": customer.address,
             },
@@ -210,24 +218,13 @@ class AdminRouteService:
             raise RouteNotFoundError()
         await self.repo.delete(route)
 
-    def _to_response(self, route) -> AdminRouteResponse:
-        customers = [
-            OrderResponse(
-                id=rc.id,
-                customer_id=rc.customer_id,
-                customer_full_name=rc.customer.full_name,
-                customer_address=rc.customer.address,
-                customer_phone=rc.customer.phone,
-                status=rc.status,
-                delivered_bottles=rc.delivered_bottles,
-                payment_amount=rc.payment.amount if rc.payment else Decimal("0"),
-                payment_method=rc.payment_method,
-                payment_photo=rc.payment.photo_url if rc.payment else None,
-                completed_at=rc.completed_at,
-                sequence=rc.sequence,
-            )
-            for rc in route.orders
-        ]
+    async def _to_response(self, route, cash: RouteCashStats) -> AdminRouteResponse:
+        price_settings = None
+        if any(rc.completed_at is None for rc in route.orders):
+            price_settings = await self.price_repo.get_current()
+
+        customers = [order_to_response(rc, price_settings) for rc in route.orders]
+
         return AdminRouteResponse(
             id=route.id,
             date=route.date,
@@ -237,4 +234,5 @@ class AdminRouteService:
             orders=customers,
             driver_id=route.driver_id,
             driver_full_name=route.driver.full_name,
+            **_cash_fields(cash),
         )

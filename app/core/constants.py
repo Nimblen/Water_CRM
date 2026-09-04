@@ -44,7 +44,10 @@ class NotificationType(str, Enum):
     CUSTOMER_REMOVED = "customer_removed"
     ROUTE_CANCELLED = "route_cancelled"
     CUSTOMER_ADDED = "customer_added"
-    
+    ORDER_MOVED = "order_moved"
+    ORDER_PAYMENT_UPDATED = "order_payment_updated"
+    EXPENSE_CREATED = "expense_created"
+    EXPENSE_DELETED = "expense_deleted"
 
 
 class PaymentMethod(str, Enum):

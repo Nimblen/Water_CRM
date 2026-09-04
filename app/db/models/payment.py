@@ -47,6 +47,5 @@ class Payment(AbstractBase):
     customer = relationship("Customer", back_populates="payments")
     order = relationship(
         "Order",
-        back_populates="payment",
-        uselist=False,
+        back_populates="payments",
     )
