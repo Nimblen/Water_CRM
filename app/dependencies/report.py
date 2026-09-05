@@ -2,7 +2,7 @@ from typing import Annotated
 from datetime import date
 from uuid import UUID
 
-from fastapi import Depends, Query
+from fastapi import Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.session import SessionDep
@@ -25,7 +25,10 @@ def get_report_date_filter(
     driver_id: UUID | None = Query(None),
 ) -> ReportDateFilter:
     if date_from > date_to:
-        raise ValueError("date_from must be <= date_to")
+        raise HTTPException(
+            status_code=400,
+            detail="date_from не может быть позже date_to",
+        )
     return ReportDateFilter(
         date_from=date_from,
         date_to=date_to,

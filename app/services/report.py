@@ -18,16 +18,17 @@ class ReportService:
         result = []
         for r in rows:
             order, route, driver = r["order"], r["route"], r["driver"]
+            customer = r["customer"]
             bulk_sale_amount = (
-                order.bulk_5l_count * order.bulk_5l_price
-                + order.bulk_10l_count * order.bulk_10l_price
+                (order.bulk_5l_count or 0) * (order.bulk_5l_price or Decimal("0.00"))
+                + (order.bulk_10l_count or 0) * (order.bulk_10l_price or Decimal("0.00"))
             )
             result.append(DriverReportRow(
                 route_id=route.id,
                 route_date=route.date,
                 driver_id=driver.id,
                 driver_full_name=driver.full_name,
-                customer_name_or_address=order.customer.full_name or order.customer.address,
+                customer_name_or_address=customer.full_name or customer.address,
                 delivered_bottles=order.delivered_bottles or 0,
                 returned_bottles=order.returned_bottles or 0,
                 bottle_balance_after=order.bottle_balance_after,
