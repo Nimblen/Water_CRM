@@ -23,7 +23,7 @@ class DriverReportRow(BaseModel):
     bottle_balance_after: int | None
     order_amount: Decimal
     payment_method: PaymentMethod | None
-    purpose: OrderPurpose
+    purpose: OrderPurpose | None
     bulk_liters_sold_count: int      # bulk_5l_count + bulk_10l_count
     bulk_sale_amount: Decimal        # bulk_5l_count*price + bulk_10l_count*price
     route_expenses_total: Decimal    # ASSUMPTION: повторяется на каждой строке маршрута — см. ниже

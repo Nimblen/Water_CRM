@@ -17,9 +17,10 @@ class ReportRepository:
 
     async def get_driver_report_rows(self, filters: ReportDateFilter) -> list[dict]:
         stmt = (
-            select(Order, Route, Driver)
+            select(Order, Route, Driver, Customer)
             .join(Route, Order.route_id == Route.id)
             .join(Driver, Route.driver_id == Driver.id)
+            .join(Customer, Order.customer_id == Customer.id)
             .where(
                 Route.date >= filters.date_from,
                 Route.date <= filters.date_to,
@@ -36,9 +37,9 @@ class ReportRepository:
 
         result = []
         for row in rows:
-            order, route, driver = row.Order, row.Route, row.Driver
+            order, route, driver, customer = row.Order, row.Route, row.Driver, row.Customer
             result.append({
-                "order": order, "route": route, "driver": driver,
+                "order": order, "route": route, "driver": driver, "customer": customer,
                 "route_expenses_total": expenses_by_route.get(route.id, Decimal("0.00")),
             })
         return result
