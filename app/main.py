@@ -4,13 +4,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import ConnectionPool, Redis
 from app.api.v1.auth import router as auth_router
 from app.api.v1.admin.drivers import router as admin_router
-from app.api.v1.driver import router as driver_router
-from app.api.v1.admin.customer import router as admin_customer
-from app.api.v1.admin.price import router as admin_price
+from app.api.v1.drivers import router as driver_router
+from app.api.v1.admin.customers import router as admin_customer
+from app.api.v1.admin.prices import router as admin_price
 from app.api.v1.admin.routes import router as admin_routes
 from app.api.v1.admin.reports import router as admin_reports
-from app.api.v1.admin.notification import router as admin_notification
+from app.api.v1.admin.orders import router as admin_orders
+from app.api.v1.orders import router as driver_orders
+from app.api.v1.admin.notifications import router as admin_notification
 from app.api.v1.notifications import router as driver_notification
+from app.api.v1.admin.expenses import router as admin_expenses
+from app.api.v1.driver_expenses import router as driver_expenses
 from app.middlewares.logging_middleware import logging_middleware
 from app.core.exceptions.handlers import register_exception_handlers
 from app.core.config import get_settings
@@ -45,10 +49,14 @@ register_exception_handlers(app)
 app.middleware("http")(logging_middleware)
 app.include_router(auth_router)
 app.include_router(admin_router)
-app.include_router(driver_router)
+app.include_router(admin_orders)
 app.include_router(admin_customer)
 app.include_router(admin_price)
 app.include_router(admin_routes)
 app.include_router(admin_reports)
+app.include_router(admin_expenses)
+app.include_router(driver_router)
+app.include_router(driver_orders)
+app.include_router(driver_expenses)
 app.include_router(admin_notification)
 app.include_router(driver_notification)

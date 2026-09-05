@@ -1,26 +1,39 @@
 from typing import Annotated
-from datetime import date, timedelta
-from fastapi import Depends
+from datetime import date
+from uuid import UUID
 
-from app.schemas.report import ReportPeriod
-from app.services.report import AdminReportService
+from fastapi import Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.dependencies.session import SessionDep
+from app.services.report import ReportService
+from app.schemas.report import ReportDateFilter
 
 
-def get_report_period(
-    date_from: date | None = None,
-    date_to: date | None = None,
-) -> ReportPeriod:
-    today = date.today()
-    return ReportPeriod(
-        date_from=date_from or today - timedelta(days=30),
-        date_to=date_to or today,
+def get_report_service(
+    session: SessionDep,
+) -> ReportService:
+    return ReportService(session)
+
+
+ReportServiceDep = Annotated[ReportService, Depends(get_report_service)]
+
+
+def get_report_date_filter(
+    date_from: date = Query(...),
+    date_to: date = Query(...),
+    driver_id: UUID | None = Query(None),
+) -> ReportDateFilter:
+    if date_from > date_to:
+        raise HTTPException(
+            status_code=400,
+            detail="date_from не может быть позже date_to",
+        )
+    return ReportDateFilter(
+        date_from=date_from,
+        date_to=date_to,
+        driver_id=driver_id,
     )
 
 
-def get_admin_report_service(session: SessionDep) -> AdminReportService:
-    return AdminReportService(session)
-
-
-ReportPeriodDep = Annotated[ReportPeriod, Depends(get_report_period)]
-AdminReportServiceDep = Annotated[AdminReportService, Depends(get_admin_report_service)]
+ReportDateFilterDep = Annotated[ReportDateFilter, Depends(get_report_date_filter)]

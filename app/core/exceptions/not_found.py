@@ -34,9 +34,14 @@ class RouteNotFoundError(NotFoundError):
 
 class OrderNotFoundError(NotFoundError):
     code = "ORDER_NOT_FOUND"
-    message = "Route customer not found"
+    message = "Order not found"
 
 
 class CustomerNotFoundError(NotFoundError):
     code = "CUSTOMER_NOT_FOUND"
     message = "Customer not found"
+
+
+class ExpenseNotFoundError(NotFoundError):
+    code = "EXPENSE_NOT_FOUND"
+    message = "Expense not found"

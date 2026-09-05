@@ -3,7 +3,7 @@ from fastapi import APIRouter
 
 from app.dependencies.user import CurrentAdminDep
 from app.dependencies.customer import CustomerServiceDep, CustomerFiltersDep
-from app.dependencies.driver import PaginationDep
+from app.dependencies.common import PaginationDep
 from app.schemas.customer import CreateCustomer, UpdateCustomer, CustomerResponse
 from app.schemas.common import PaginatedResponse
 from app.dependencies.idempotency import IdempotencyKeyDep

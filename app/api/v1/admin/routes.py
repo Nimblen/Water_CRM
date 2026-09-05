@@ -3,8 +3,8 @@ from fastapi import APIRouter
 
 from app.dependencies.user import CurrentAdminDep
 from app.dependencies.route import AdminRouteServiceDep, RouteFiltersDep
-from app.dependencies.driver import PaginationDep
-from app.schemas.route import CreateRoute, UpdateRoute, AdminRouteResponse, AdminRouteListItem
+from app.dependencies.common import PaginationDep
+from app.schemas.route import CreateRoute, UpdateRoute, AdminRouteResponse, AdminRouteListItem, AddRouteCustomer
 from app.schemas.customer import UpdateCustomerSequence
 from app.schemas.common import PaginatedResponse
 from app.dependencies.idempotency import IdempotencyKeyDep
@@ -53,19 +53,29 @@ async def cancel_route(route_id: UUID, _: CurrentAdminDep, service: AdminRouteSe
 async def assign_driver(route_id: UUID, driver_id: UUID, _: CurrentAdminDep, service: AdminRouteServiceDep):
     await service.assign_driver(route_id, driver_id)
 
-@router.patch("/{route_id}/customers/{customer_id}/order", status_code=204)
-async def update_customer_order(
+@router.patch("/{route_id}/customers/{customer_id}/sequence", status_code=204)
+async def update_customer_sequence(
     route_id: UUID,
     customer_id: UUID,
     body: UpdateCustomerSequence,
     _: CurrentAdminDep,
     service: AdminRouteServiceDep,
 ):
-    await service.update_customer_sequence(route_id, customer_id, body.order)
+    await service.update_customer_sequence(route_id, customer_id, body.sequence)
 
 @router.post("/{route_id}/customers/{customer_id}", status_code=204)
-async def add_customer(route_id: UUID, customer_id: UUID, _: CurrentAdminDep, service: AdminRouteServiceDep):
-    await service.add_customer(route_id, customer_id)
+async def add_customer(
+    route_id: UUID,
+    customer_id: UUID,
+    _: CurrentAdminDep,
+    service: AdminRouteServiceDep,
+    body: AddRouteCustomer | None = None,
+):
+    # Заказчик — из пути: тело появилось вместе с целью заказа, а сборки в
+    # сторах шлют этот POST пустым и обязаны продолжать работать.
+    await service.add_customer(
+        route_id, customer_id, body.order_purpose if body else None
+    )
 
 
 @router.delete("/{route_id}/customers/{customer_id}", status_code=204)

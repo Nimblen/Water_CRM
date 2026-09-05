@@ -12,6 +12,7 @@ from app.schemas.customer import (
 from app.schemas.common import PaginationParams, PaginatedResponse, build_paginated_response
 from app.core.exceptions.not_found import CustomerNotFoundError
 from app.core.exceptions.conflict import BothBalancesSetError, CustomerPhoneAlreadyExistsError, CustomerAlreadyActiveError, CustomerAlreadyInactiveError
+from app.services.customer_balance import CustomerBalanceService
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -22,6 +23,7 @@ class CustomerService:
         self.repo = CustomerRepository(session)
         self.adjustments_repo = CustomerBalanceAdjustmentsRepository(session)
         self.idempotency_repo = IdempotencyRepository(session)
+        self.balance_service = CustomerBalanceService(session)
 
 
         
@@ -29,8 +31,6 @@ class CustomerService:
         existing = await self.repo.get_by_phone(data.phone)
         if existing:
             raise CustomerPhoneAlreadyExistsError()
-        if data.debt > 0 and data.prepayment > 0:
-            raise BothBalancesSetError()
 
         customer = Customer(
             full_name=data.full_name,
@@ -39,24 +39,23 @@ class CustomerService:
             comment=data.comment,
             cooler_count=data.cooler_count,
             custom_water_price=data.custom_water_price,
-            debt=data.debt,
-            prepayment=data.prepayment,
+            debt=Decimal("0.00"),
+            prepayment=Decimal("0.00"),
         )
         customer = await self.repo.create(customer)
         await self.session.flush()
         await self.session.refresh(customer)
+
         if data.debt > 0 or data.prepayment > 0:
-            await self.adjustments_repo.create(
-                CustomerBalanceAdjustments(
-                    customer_id=customer.id,
-                    user_id=current_user_id,
-                    debt_before=Decimal("0"),
-                    debt_after=customer.debt,
-                    prepayment_before=Decimal("0"),
-                    prepayment_after=customer.prepayment,
-                    reason="initial_balance_on_create",
-                )
+            await self.balance_service.set_balance(
+                customer,
+                new_debt=data.debt,
+                new_prepayment=data.prepayment,
+                user_id=current_user_id,
+                reason="initial_balance_on_create",
             )
+            await self.session.refresh(customer)
+
         return CustomerResponse.model_validate(customer)
 
     async def get_customer(self, customer_id: UUID) -> CustomerResponse:
@@ -86,36 +85,28 @@ class CustomerService:
             existing = await self.repo.get_by_phone(data.phone)
             if existing:
                 raise CustomerPhoneAlreadyExistsError()
-        update_data = data.model_dump(exclude_unset=True)
-        new_debt = update_data.get("debt", customer.debt)
-        new_prepayment = update_data.get("prepayment", customer.prepayment)
-        if new_debt > 0 and new_prepayment > 0:
-            raise BothBalancesSetError()
 
-        balance_changed = "debt" in update_data or "prepayment" in update_data
-        debt_before, prepayment_before = customer.debt, customer.prepayment
+        update_data = data.model_dump(exclude_unset=True)
+        if update_data.get("cooler_count") is None:
+            update_data.pop("cooler_count", None)
+
+        new_debt = update_data.pop("debt", None)
+        new_prepayment = update_data.pop("prepayment", None)
 
         for field, value in update_data.items():
             setattr(customer, field, value)
 
-        await self.session.flush()
-        await self.session.refresh(customer)
-
-        if balance_changed and (
-            customer.debt != debt_before or customer.prepayment != prepayment_before
-        ):
-            await self.adjustments_repo.create(
-                CustomerBalanceAdjustments(
-                    customer_id=customer.id,
-                    user_id=current_user_id,
-                    debt_before=debt_before,
-                    debt_after=customer.debt,
-                    prepayment_before=prepayment_before,
-                    prepayment_after=customer.prepayment,
-                    reason="balance_adjustment_via_patch",
-                )
+        if new_debt is not None or new_prepayment is not None:
+            await self.balance_service.set_balance(
+                customer,
+                new_debt=new_debt if new_debt is not None else customer.debt,
+                new_prepayment=new_prepayment if new_prepayment is not None else customer.prepayment,
+                user_id=current_user_id,
+                reason="balance_adjustment_via_patch",
             )
 
+        await self.session.flush()
+        await self.session.refresh(customer)
         return CustomerResponse.model_validate(customer)
 
     async def deactivate_customer(self, customer_id: UUID) -> None:

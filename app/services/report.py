@@ -1,70 +1,99 @@
-from io import BytesIO
-from app.core.exceptions.not_found import DriverNotFoundError
-from sqlalchemy.ext.asyncio import AsyncSession
+import io
+from decimal import Decimal
+import openpyxl
+from fastapi.responses import StreamingResponse
 
 from app.repositories.report import ReportRepository
-from app.repositories.driver import DriverRepository
-from app.core.constants import DeliveryStatus
-from app.schemas.report import ReportExportFilters, ReportPeriod, SummaryReport, DriverReportItem
-from app.services.export import build_deliveries_export
+from app.schemas.report import (
+    ReportDateFilter, DriverReportRow, CustomerReportRow, GeneralReportRow,
+)
 
 
-class AdminReportService:
-    def __init__(self, session: AsyncSession):
-        self.session = session
+class ReportService:
+    def __init__(self, session):
         self.repo = ReportRepository(session)
-        self.driver_repo = DriverRepository(session)
 
-    async def get_summary(self, period: ReportPeriod) -> SummaryReport:
-        routes_count = await self.repo.count_routes(period)
-        completed = await self.repo.count_deliveries_by_status(period, DeliveryStatus.DELIVERED)
-        failed = await self.repo.count_deliveries_by_status(period, DeliveryStatus.FAILED)
-        revenue = await self.repo.sum_revenue(period)
-        debt = await self.repo.sum_total_debt()
-
-        return SummaryReport(
-            routes_count=routes_count,
-            completed_deliveries_count=completed,
-            failed_deliveries_count=failed,
-            total_revenue=revenue,
-            total_debt=debt,
-        )
-
-    async def get_drivers_report(self, period: ReportPeriod) -> list[DriverReportItem]:
-        rows = await self.repo.get_drivers_report(period)
-
-        items = []
-        for row in rows:
-            driver_full_name = row["driver_full_name"]
-            if driver_full_name is None:
-                driver = await self.driver_repo.get_by_id(row["driver_id"])
-                driver_full_name = driver.full_name if driver else "—"
-
-            items.append(DriverReportItem(
-                driver_id=row["driver_id"],
-                driver_full_name=driver_full_name,
-                routes_count=row["routes_count"],
-                completed_deliveries_count=row["completed_deliveries_count"],
-                total_revenue=row["total_revenue"],
+    async def get_driver_report(self, filters: ReportDateFilter) -> list[DriverReportRow]:
+        rows = await self.repo.get_driver_report_rows(filters)
+        result = []
+        for r in rows:
+            order, route, driver = r["order"], r["route"], r["driver"]
+            customer = r["customer"]
+            bulk_sale_amount = (
+                (order.bulk_5l_count or 0) * (order.bulk_5l_price or Decimal("0.00"))
+                + (order.bulk_10l_count or 0) * (order.bulk_10l_price or Decimal("0.00"))
+            )
+            result.append(DriverReportRow(
+                route_id=route.id,
+                route_date=route.date,
+                driver_id=driver.id,
+                driver_full_name=driver.full_name,
+                customer_name_or_address=customer.full_name or customer.address,
+                delivered_bottles=order.delivered_bottles or 0,
+                returned_bottles=order.returned_bottles or 0,
+                bottle_balance_after=order.bottle_balance_after,
+                order_amount=order.order_amount or Decimal("0.00"),
+                payment_method=order.payment_method,
+                purpose=order.purpose,
+                bulk_liters_sold_count=(order.bulk_5l_count or 0) + (order.bulk_10l_count or 0),
+                bulk_sale_amount=bulk_sale_amount,
+                route_expenses_total=r["route_expenses_total"],
             ))
-        return sorted(items, key=lambda x: x.total_revenue, reverse=True)
-    
+        return result
 
-    async def export_deliveries(self, filters: ReportExportFilters) -> BytesIO:
-        if filters.driver_id:
-            driver = await self.driver_repo.get_by_id(filters.driver_id)
-            if not driver:
-                raise DriverNotFoundError()
-
-        deliveries = await self.repo.get_deliveries_for_export(filters)
-
-        rows = [
-            {
-                "address": rc.customer.address,
-                "quantity": rc.delivered_bottles or 0,
-                "amount": rc.payment.amount if rc.payment else 0,
-                "phone": rc.customer.phone,
-            }
-            for rc in deliveries
+    async def get_customer_report(self, filters: ReportDateFilter) -> list[CustomerReportRow]:
+        rows = await self.repo.get_customer_report_rows(filters)
+        return [
+            CustomerReportRow(
+                customer_id=r["customer"].id,
+                full_name=r["customer"].full_name,
+                address=r["customer"].address,
+                phone=r["customer"].phone,
+                bulk_liters_purchased=r["agg"].bulk_qty,
+                damaged_bottles_count=r["agg"].damaged,
+                bottles_purchased_in_period=r["agg"].delivered,
+                current_bottle_balance=r["customer"].bottle_balance,
+                current_cooler_count=r["customer"].cooler_count,
+                prepayment=r["customer"].prepayment,
+                debt=r["customer"].debt,
+                total_realization=r["agg"].realization,
+            )
+            for r in rows
         ]
-        return build_deliveries_export(rows)
+
+    async def get_general_report(self, filters: ReportDateFilter) -> list[GeneralReportRow]:
+        rows = await self.repo.get_general_report_rows(filters)
+        return [
+            GeneralReportRow(
+                date=r["route"].date,
+                driver_full_name=r["driver"].full_name,
+                customer_name_or_address=r["customer"].full_name or r["customer"].address,
+                delivered_bottles=r["order"].delivered_bottles or 0,
+                returned_bottles=r["order"].returned_bottles or 0,
+                order_amount=r["order"].order_amount or Decimal("0.00"),
+                damaged_bottles=r["order"].damaged_bottles or 0,
+                cooler_count=r["customer"].cooler_count,
+            )
+            for r in rows
+        ]
+
+    def to_excel(self, rows: list, filename: str) -> StreamingResponse:
+        if not rows:
+            headers = []
+        else:
+            headers = list(rows[0].model_dump().keys())
+
+        wb = openpyxl.Workbook()
+        sheet = wb.active
+        sheet.append(headers)
+        for row in rows:
+            sheet.append([str(v) if v is not None else "" for v in row.model_dump().values()])
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        return StreamingResponse(
+            buf,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )

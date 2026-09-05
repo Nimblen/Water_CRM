@@ -131,8 +131,8 @@ class Order(AbstractBase):
     )
     route = relationship("Route", back_populates="orders", foreign_keys=[route_id],)
     customer = relationship("Customer", back_populates="orders")
-    payment = relationship(
+    payments = relationship(
         "Payment",
         back_populates="order",
-        uselist=False,
+        cascade="all, delete-orphan",
     )
