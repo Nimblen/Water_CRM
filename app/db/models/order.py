@@ -47,6 +47,10 @@ class Order(AbstractBase):
         nullable=True,
         server_default="0",
     )
+    bottle_balance: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
     bottle_balance_after: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True,

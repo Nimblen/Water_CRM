@@ -138,32 +138,10 @@ class CustomerOrderInput(BaseModel):
 
 
 class AddRouteCustomer(BaseModel):
-    """Тело POST /admin/routes/{route_id}/customers/{customer_id}.
-
-    Все поля необязательные, потому что установленные сборки шлют этот запрос
-    вообще без тела — заказчик у них только в пути. Путь и остаётся источником
-    истины: customer_id принимается ради новых сборок, но не используется.
-    """
-
     customer_id: UUID | None = None
     order_purpose: OrderPurpose | None = None
 
     model_config = {"extra": "ignore"}
-
-
-class AddRouteCustomer(BaseModel):
-    """Тело POST /admin/routes/{route_id}/customers/{customer_id}.
-
-    Все поля необязательные, потому что установленные сборки шлют этот запрос
-    вообще без тела — заказчик у них только в пути. Путь и остаётся источником
-    истины: customer_id принимается ради новых сборок, но не используется.
-    """
-
-    customer_id: UUID | None = None
-    order_purpose: OrderPurpose | None = None
-
-    model_config = {"extra": "ignore"}
-
 
 class CreateRoute(BaseModel):
     driver_id: UUID | None = None

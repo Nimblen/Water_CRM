@@ -16,7 +16,7 @@ from app.core.exceptions.validation import InvalidUpdateFieldsError
 from app.core.constants import NotificationType, OrderPurpose, RouteStatus
 from app.schemas.route import (
     CreateRoute, UpdateRoute, RouteFilters,
-    AdminRouteResponse, AdminRouteListItem, OrderResponse
+    AdminRouteResponse, AdminRouteListItem,
 )
 from app.schemas.common import PaginationParams, PaginatedResponse, build_paginated_response
 from app.repositories.idempotency import IdempotencyRepository

@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "/app/uploads"
     MAX_UPLOAD_SIZE_MB: int = 10
     ALLOWED_IMAGE_TYPES: set[str] = {"image/jpeg", "image/png", "image/webp"}
+    DEFAULT_ADMIN_PHONE: str = "998901234567"
+    DEFAULT_ADMIN_PASSWORD: str = "Admin123!"
 
     class Config:
         env_file = ".env"

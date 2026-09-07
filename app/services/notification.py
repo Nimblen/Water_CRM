@@ -43,8 +43,12 @@ class AdminNotificationService:
 
     async def event_source(self, last_id: int) -> AsyncIterator[NotificationEvent]:
         pubsub = self.redis.pubsub()
-        await pubsub.subscribe(CHANNEL)
-
+        try:
+            await pubsub.subscribe(CHANNEL  )
+        except RedisError:
+            logger.error("notification_subscribe_failed")
+            await pubsub.aclose()
+            raise 
         max_sent_id = last_id
         try:
             async for event in self._backlog(last_id):
@@ -67,6 +71,7 @@ class AdminNotificationService:
                     try:
                         await pubsub.subscribe(CHANNEL)
                     except RedisError:
+                        await pubsub.aclose()
                         continue
                     async for event in self._backlog(max_sent_id):
                         max_sent_id = max(max_sent_id, event.id)
@@ -120,8 +125,12 @@ class DriverNotificationService:
     async def event_source(self, driver_id: uuid.UUID, last_id: int) -> AsyncIterator[NotificationEvent]:
         channel = self._channel(driver_id)
         pubsub = self.redis.pubsub()
-        await pubsub.subscribe(channel)
-
+        try:
+            await pubsub.subscribe(channel)
+        except RedisError:
+            logger.error("notification_subscribe_failed")
+            await pubsub.aclose()
+            raise 
         max_sent_id = last_id
         try:
             async for event in self._backlog(driver_id, last_id):
@@ -144,6 +153,7 @@ class DriverNotificationService:
                     try:
                         await pubsub.subscribe(channel)
                     except RedisError:
+                        await pubsub.aclose()
                         continue
                     async for event in self._backlog(driver_id, max_sent_id):
                         max_sent_id = max(max_sent_id, event.id)

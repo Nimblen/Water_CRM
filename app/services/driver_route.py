@@ -23,7 +23,6 @@ from app.core.exceptions.conflict import InvalidDeliveryStatusError, OrderAlread
 from app.services.storage import save_image
 from app.schemas.route import (
     RouteResponse,
-    OrderResponse,
     RouteListItem,
     UpdateDeliveryStatus,
     CompleteDelivery,
@@ -151,6 +150,7 @@ class DriverRouteService:
             order.damaged_bottles = payload.damaged_bottles
 
         if payload.bottle_balance is not None:
+            order.bottle_balance = order.customer.bottle_balance
             order.customer.bottle_balance = payload.bottle_balance
             order.bottle_balance_after = payload.bottle_balance
         price_settings = await self.price_repo.get_current()

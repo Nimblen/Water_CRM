@@ -24,7 +24,7 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    pool = ConnectionPool.from_url(settings.REDIS_URL, max_connections=20)
+    pool = ConnectionPool.from_url(settings.REDIS_URL, max_connections=200)
     app.state.redis = Redis(connection_pool=pool)
     try:
         yield

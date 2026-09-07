@@ -35,6 +35,7 @@ class OrderResponse(BaseModel):
     delivered_bottles: int | None
     returned_bottles: int | None
     damaged_bottles: int | None
+    bottle_balance: int | None
     bottle_balance_after: int | None
 
     bulk_5l_count: int | None
@@ -141,6 +142,7 @@ def order_to_response(order, price_settings=None) -> "OrderResponse":
         delivered_bottles=order.delivered_bottles,
         returned_bottles=order.returned_bottles,
         damaged_bottles=order.damaged_bottles,
+        bottle_balance=order.bottle_balance,
         bottle_balance_after=order.bottle_balance_after,
         bulk_5l_count=order.bulk_5l_count,
         bulk_5l_price=order.bulk_5l_price,
