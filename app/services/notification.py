@@ -48,7 +48,6 @@ class AdminNotificationService:
         except RedisError:
             logger.error("notification_subscribe_failed")
             await pubsub.aclose()
-            raise 
         max_sent_id = last_id
         try:
             async for event in self._backlog(last_id):
@@ -130,7 +129,6 @@ class DriverNotificationService:
         except RedisError:
             logger.error("notification_subscribe_failed")
             await pubsub.aclose()
-            raise 
         max_sent_id = last_id
         try:
             async for event in self._backlog(driver_id, last_id):
