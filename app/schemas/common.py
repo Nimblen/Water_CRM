@@ -15,6 +15,7 @@ class PaginationParams(BaseModel):
         ge=1,
         le=100,
     )
+    
 
     @property
     def offset(self):

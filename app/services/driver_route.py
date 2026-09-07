@@ -13,9 +13,9 @@ from app.services.notification import AdminNotificationService
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import UploadFile
 
+from app.utils.order_price import calculate_order_cost
 from app.repositories.route import RouteRepository, _cash_fields
 from app.repositories.price_settings import PriceSettingsRepository
-from app.db.models.payment import Payment
 from app.db.models.route import Route
 from app.core.constants import DeliveryStatus, NotificationType, OrderPurpose, RouteStatus, PaymentMethod
 from app.core.exceptions.not_found import RouteNotFoundError, OrderNotFoundError
@@ -31,7 +31,7 @@ from app.schemas.route import (
 
 TERMINAL_STATUSES = (DeliveryStatus.DELIVERED, DeliveryStatus.FAILED)
 DRIVER_SETTABLE_STATUSES = (DeliveryStatus.ON_WAY, DeliveryStatus.FAILED)
-DRIVER_VISIBLE_STATUSES = (RouteStatus.IN_PROGRESS,)
+DRIVER_VISIBLE_STATUSES = (RouteStatus.IN_PROGRESS, RouteStatus.COMPLETED, RouteStatus.CANCELLED, RouteStatus.CREATED)
 
 class DriverRouteService:
     def __init__(self, session: AsyncSession, admin_notifications: AdminNotificationService, driver_notifications: AdminNotificationService):
@@ -154,15 +154,7 @@ class DriverRouteService:
             order.customer.bottle_balance = payload.bottle_balance
             order.bottle_balance_after = payload.bottle_balance
         price_settings = await self.price_repo.get_current()
-        price = order.customer.custom_water_price or price_settings.water_price
-        fine = price_settings.damaged_bottle_fine
-        water_sum = payload.delivered_bottles * price if purpose == OrderPurpose.DELIVERY_19L else Decimal("0.00")
-        damage_sum = payload.damaged_bottles * fine
-        bulk_sum = (
-            order.bulk_5l_count * order.bulk_5l_price
-            + order.bulk_10l_count * order.bulk_10l_price
-        )
-        order_cost = water_sum + damage_sum + bulk_sum
+        order_cost, price, fine = await calculate_order_cost(order, purpose, price_settings)
         order.water_price_applied = price
         order.damaged_fine_applied = fine
         order.order_amount = order_cost
@@ -200,7 +192,7 @@ class DriverRouteService:
         payload = {"order_id": str(order.id), "route_id": str(order.route_id)}
         if order.route.driver_id:
             await self.driver_notifications.broadcast(
-                self.session, order.route.driver_id, NotificationType.DELIVERY_COMPLETED, payload
+                self.session, NotificationType.DELIVERY_COMPLETED, payload
             )
         await self.admin_notifications.broadcast(self.session, NotificationType.DELIVERY_COMPLETED, payload)
 
@@ -208,7 +200,7 @@ class DriverRouteService:
             route_payload = {"route_id": str(order.route_id)}
             if order.route.driver_id:
                 await self.driver_notifications.broadcast(
-                    self.session, order.route.driver_id, NotificationType.ROUTE_COMPLETED, route_payload
+                    self.session, NotificationType.ROUTE_COMPLETED, route_payload
                 )
             await self.admin_notifications.broadcast(self.session, NotificationType.ROUTE_COMPLETED, route_payload)
     async def _finalize_route_if_needed(self, route: Route) -> None:

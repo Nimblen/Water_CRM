@@ -23,6 +23,7 @@ from app.schemas.order import (
 )
 from app.schemas.common import PaginationParams, PaginatedResponse, build_paginated_response
 from app.core.exceptions.permissions import OrderAccessDeniedError
+from app.utils.order_price import calculate_order_cost
 
 #TODO: split into driver and admin
 class OrderService:
@@ -181,7 +182,8 @@ class OrderService:
 
         if order.status != DeliveryStatus.DELIVERED:
             raise OrderNotCompletedError()
-
+        price_settings = await self.price_repo.get_current()
+        order_cost, price, fine = await calculate_order_cost(order, order.purpose, price_settings)
         paid_amount = await self.repo.get_total_paid(order_id)
         delta = payload.amount - paid_amount
 
@@ -204,7 +206,9 @@ class OrderService:
                 reason=f"order_payment_correction:{order_id}",
             )
 
-        order.order_amount = payload.amount
+        order.order_amount = order_cost
+        order.water_price_applied = price
+        order.damaged_fine_applied = fine
         order.payment_method = payload.payment_method
 
         await self._notify_payment_updated(order)

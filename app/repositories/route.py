@@ -16,11 +16,11 @@ from app.schemas.common import PaginationParams
 
 def _cash_fields(stats: "RouteCashStats") -> dict:
     return {
-        "cash_collected": stats.cash_collected,
-        "cashless_collected": stats.cashless_collected,
-        "debt_amount": stats.debt_amount,
-        "expenses_total": stats.expenses_total,
-        "cash_balance": stats.cash_balance,
+        "cash_collected": stats.cash_collected or Decimal("0.00"),
+        "cashless_collected": stats.cashless_collected or Decimal("0.00"),
+        "debt_amount": stats.debt_amount or Decimal("0.00"),
+        "expenses_total": stats.expenses_total or Decimal("0.00"),
+        "cash_balance": stats.cash_balance or Decimal("0.00"),
     }
 @dataclass
 class RouteCashStats:

@@ -95,8 +95,8 @@ class AdminRouteService:
                 completed_count=r.completed_count,
                 total_customers=len(r.orders),
                 driver_id=r.driver_id,
-                driver_full_name=r.driver.full_name,
-                **_cash_fields(cash_stats[r.id]),
+                driver_full_name=r.driver.full_name if r.driver else None,
+                **(_cash_fields(cash_stats[r.id]) if cash_stats[r.id] is not None else {}),
             )
             for r in routes
         ]
@@ -156,7 +156,7 @@ class AdminRouteService:
             NotificationType.CUSTOMER_ADDED,
             {
                 "route_id": str(route.id),
-                "customer_id": str(customer_data.customer_id),
+                "customer_id": str(customer.id),
                 "customer_full_name": customer.full_name,
                 "customer_address": customer.address,
             },

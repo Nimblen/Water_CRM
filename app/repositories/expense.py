@@ -69,7 +69,7 @@ class ExpenseRepository:
         stmt = (
             stmt.order_by(RouteExpenses.created_at.desc())
             .offset(pagination.offset)
-            .limit(pagination.limit)
+            .limit(pagination.page_size)
         )
 
         total = (await self.session.execute(count_stmt)).scalar_one()

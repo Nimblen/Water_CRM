@@ -121,7 +121,7 @@ class Order(AbstractBase):
         nullable=True,
     )
     moved_from_route_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("routes.id", ondelete="CASCADE"),
+        ForeignKey("routes.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )

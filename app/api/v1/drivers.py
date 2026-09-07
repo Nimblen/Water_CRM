@@ -46,10 +46,7 @@ async def complete_delivery(
 ):
     await service.complete_delivery(order_id=order_id, payload=data, photo=payment_photo, driver_id=driver_id)
     if idempotency_key:
-        # Ключ ищется по request.url.path (фактический путь с UUID), поэтому и
-        # сохранять надо его же: с шаблоном пути повтор никогда не совпадал и
-        # водитель после обрыва связи получал 409 вместо тихого успеха.
         await service.idempotency_repo.save(
-            idempotency_key, endpoint="/driver/routes/customers/{route_customer_id}/complete",
+            idempotency_key, endpoint=request.url.path,
             status_code=204, response_body={},
         )

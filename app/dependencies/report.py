@@ -23,6 +23,7 @@ def get_report_date_filter(
     date_from: date = Query(...),
     date_to: date = Query(...),
     driver_id: UUID | None = Query(None),
+    customer_id: UUID | None = Query(None),
 ) -> ReportDateFilter:
     if date_from > date_to:
         raise HTTPException(
@@ -33,6 +34,7 @@ def get_report_date_filter(
         date_from=date_from,
         date_to=date_to,
         driver_id=driver_id,
+        customer_id=customer_id,
     )
 
 

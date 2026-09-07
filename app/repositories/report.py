@@ -74,6 +74,8 @@ class ReportRepository:
         )
         if filters.driver_id:
             orders_stmt = orders_stmt.where(Route.driver_id == filters.driver_id)
+        if filters.customer_id:
+            orders_stmt = orders_stmt.where(Order.customer_id == filters.customer_id)
 
         aggregates = {row.customer_id: row for row in (await self.session.execute(orders_stmt)).all()}
 

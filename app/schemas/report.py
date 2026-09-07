@@ -10,7 +10,7 @@ class ReportDateFilter(BaseModel):
     date_from: date
     date_to: date
     driver_id: UUID | None = None   # доп. фильтр, не в спеке явно, но полезен
-
+    customer_id: UUID | None = None
 
 class DriverReportRow(BaseModel):
     route_id: UUID
