@@ -246,6 +246,6 @@ class AdminRouteService:
             total_customers=len(customers),
             orders=customers,
             driver_id=route.driver_id,
-            driver_full_name=route.driver.full_name,
+            driver_full_name=route.driver.full_name if route.driver else None,
             **_cash_fields(cash),
         )
