@@ -71,10 +71,11 @@ async def add_customer(
     service: AdminRouteServiceDep,
     body: AddRouteCustomer | None = None,
 ):
-    # Заказчик — из пути: тело появилось вместе с целью заказа, а сборки в
-    # сторах шлют этот POST пустым и обязаны продолжать работать.
     await service.add_customer(
-        route_id, customer_id, body.order_purpose if body else None
+        route_id, customer_id, 
+        bottle_sell_count=body.bottle_sell_count if body else None, 
+        purpose=body.order_purpose if body else None, 
+        sequence=body.sequence if body else None
     )
 
 

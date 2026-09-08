@@ -1,12 +1,58 @@
-import io
 from decimal import Decimal
-import openpyxl
-from fastapi.responses import StreamingResponse
 
 from app.repositories.report import ReportRepository
 from app.schemas.report import (
     ReportDateFilter, DriverReportRow, CustomerReportRow, GeneralReportRow,
 )
+from app.services.export import ExcelColumn, ColumnType, build_excel_response, ORDER_PURPOSE_LABELS, PAYMENT_METHOD_LABELS, EXPENSE_CATEGORY_LABELS
+
+
+DRIVER_REPORT_COLUMNS = [
+    ExcelColumn("route_date", "Дата маршрута", ColumnType.DATE),
+    ExcelColumn("driver_full_name", "Водитель", ColumnType.TEXT, width=22),
+    ExcelColumn("customer_name_or_address", "Заказчик", ColumnType.TEXT, width=28),
+    ExcelColumn("delivered_bottles", "Доставлено бутылей (19л)", ColumnType.INT, totals=True),
+    ExcelColumn("returned_bottles", "Возвращено бутылей", ColumnType.INT, totals=True),
+    ExcelColumn("bottle_balance_after", "Баланс бутылей у клиента", ColumnType.INT),
+    ExcelColumn("order_amount", "Сумма заказа", ColumnType.CURRENCY, totals=True),
+    ExcelColumn("payment_method", "Способ оплаты", ColumnType.ENUM, labels=PAYMENT_METHOD_LABELS),
+    ExcelColumn("purpose", "Цель заказа", ColumnType.ENUM, labels=ORDER_PURPOSE_LABELS),
+    ExcelColumn("bulk_liters_sold_count", "Продано бутылей (опт)", ColumnType.INT, totals=True),
+    ExcelColumn("bulk_sale_amount", "Сумма опт. продаж", ColumnType.CURRENCY, totals=True),
+    ExcelColumn("route_expenses_total", "Расходы по маршруту", ColumnType.CURRENCY, totals=True),
+]
+
+
+CUSTOMER_REPORT_COLUMNS = [
+    ExcelColumn("full_name", "Заказчик", ColumnType.TEXT, width=26),
+    ExcelColumn("address", "Адрес", ColumnType.TEXT, width=32),
+    ExcelColumn("phone", "Телефон", ColumnType.TEXT, width=16),
+    ExcelColumn("bulk_liters_purchased", "Куплено бутылей (опт)", ColumnType.INT, totals=True),
+    ExcelColumn("bottles_purchased_in_period", "Куплено бутылей за период", ColumnType.INT, totals=True),
+    ExcelColumn("damaged_bottles_count", "Повреждено бутылей", ColumnType.INT, totals=True),
+    ExcelColumn("current_bottle_balance", "Текущий баланс бутылей", ColumnType.INT),
+    ExcelColumn("current_cooler_count", "Кулеров у заказчика", ColumnType.INT),
+    ExcelColumn("prepayment", "Предоплата", ColumnType.CURRENCY),
+    ExcelColumn("debt", "Долг", ColumnType.CURRENCY),
+    ExcelColumn("total_realization", "Сумма реализации", ColumnType.CURRENCY, totals=True),
+]
+
+GENERAL_REPORT_COLUMNS = [
+    ExcelColumn("date", "Дата", ColumnType.DATE),
+    ExcelColumn("driver_full_name", "Водитель", ColumnType.TEXT, width=22),
+    ExcelColumn("customer_name_or_address", "Заказчик", ColumnType.TEXT, width=28),
+    ExcelColumn("delivered_bottles", "Доставлено бутылей", ColumnType.INT, totals=True),
+    ExcelColumn("returned_bottles", "Возвращено бутылей", ColumnType.INT, totals=True),
+    ExcelColumn("damaged_bottles", "Повреждено бутылей", ColumnType.INT, totals=True),
+    ExcelColumn("order_amount", "Сумма заказа", ColumnType.CURRENCY, totals=True),
+    ExcelColumn("cooler_count", "Кулеров у заказчика", ColumnType.INT),
+]
+
+_REPORT_SPECS = {
+    DriverReportRow: (DRIVER_REPORT_COLUMNS, "Отчёт по водителям"),
+    CustomerReportRow: (CUSTOMER_REPORT_COLUMNS, "Отчёт по клиентам"),
+    GeneralReportRow: (GENERAL_REPORT_COLUMNS, "Общий отчёт"),
+}
 
 
 class ReportService:
@@ -77,23 +123,13 @@ class ReportService:
             for r in rows
         ]
 
-    def to_excel(self, rows: list, filename: str) -> StreamingResponse:
-        if not rows:
-            headers = []
-        else:
-            headers = list(rows[0].model_dump().keys())
-
-        wb = openpyxl.Workbook()
-        sheet = wb.active
-        sheet.append(headers)
-        for row in rows:
-            sheet.append([str(v) if v is not None else "" for v in row.model_dump().values()])
-
-        buf = io.BytesIO()
-        wb.save(buf)
-        buf.seek(0)
-        return StreamingResponse(
-            buf,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-        )
+    def to_excel(self, rows: list, filename: str, report_type: type | None = None) -> "StreamingResponse":
+        row_type = report_type or (type(rows[0]) if rows else None)
+        spec = _REPORT_SPECS.get(row_type)
+        if spec is None:
+            raise ValueError(
+                "Не удалось определить колонки для Excel: список пуст и "
+                "report_type не передан, либо это неизвестный тип отчёта."
+            )
+        columns, sheet_title = spec
+        return build_excel_response(rows, columns, filename, sheet_title)

@@ -148,8 +148,14 @@ class RouteRepository:
             result = await self.session.execute(stmt)
             return list(result.scalars().unique().all()), total
 
-    async def add_customer(self, route_id: uuid.UUID, customer_id: uuid.UUID, order_purpose: OrderPurpose = OrderPurpose.DELIVERY_19L, sequence: int | None = None) -> Order:
-        rc = Order(route_id=route_id, customer_id=customer_id, purpose=order_purpose, status=DeliveryStatus.PENDING, sequence=sequence)
+    async def add_customer(self, route_id: uuid.UUID, customer_id: uuid.UUID, 
+                            bottle_sell_count: int | None = None, 
+                            order_purpose: OrderPurpose = OrderPurpose.DELIVERY_19L, 
+                            sequence: int | None = None) -> Order:
+        rc = Order(route_id=route_id, customer_id=customer_id, 
+                    purpose=order_purpose, status=DeliveryStatus.PENDING, 
+                    bottle_sell_count=bottle_sell_count, 
+                    sequence=sequence)
         self.session.add(rc)
         await self.session.flush()
         return rc

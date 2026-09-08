@@ -68,7 +68,7 @@ class AdminRouteService:
             customer = await self.customer_repo.get_by_id(customer_data.customer_id)
             if not customer or not customer.is_active:
                 raise CustomerNotFoundError()
-            await self.repo.add_customer(route.id, customer_data.customer_id, customer_data.order_purpose or OrderPurpose.DELIVERY_19L,  sequence=customer_data.sequence or index)
+            await self.repo.add_customer(route.id, customer_data.customer_id, bottle_sell_count=customer_data.bottle_sell_count, order_purpose=customer_data.order_purpose or OrderPurpose.DELIVERY_19L,  sequence=customer_data.sequence or index)
 
         await self.session.flush()
         route = await self.repo.get_by_id(route.id)
@@ -136,6 +136,7 @@ class AdminRouteService:
         self,
         route_id: UUID,
         customer_id: UUID,
+        bottle_sell_count: int | None = None,
         purpose: OrderPurpose | None = None,
         sequence: int | None = None,
     ) -> None:
@@ -148,7 +149,10 @@ class AdminRouteService:
         # Цель не передана — доставка капсул: до появления целей она была
         # единственной, и старые сборки обязаны сохранить прежнее поведение.
         await self.repo.add_customer(
-            route_id, customer_id, purpose or OrderPurpose.DELIVERY_19L, sequence
+            route_id, customer_id, 
+            bottle_sell_count=bottle_sell_count, 
+            order_purpose=purpose or OrderPurpose.DELIVERY_19L, 
+            sequence=sequence
         )
         await self.session.flush()
         await self._notify_driver_if_in_progress(

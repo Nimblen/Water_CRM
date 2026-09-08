@@ -5,7 +5,7 @@ from decimal import Decimal
 from app.core.exceptions.validation import PaymentAmountInvalidError
 from app.schemas.order import OrderResponse
 from fastapi import Form, HTTPException
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from app.core.constants import DeliveryStatus, RouteStatus, PaymentMethod, OrderPurpose
 
 
@@ -134,15 +134,51 @@ class RouteListItem(RouteCashSummary):
 class CustomerOrderInput(BaseModel):
     customer_id: UUID
     order_purpose: OrderPurpose = OrderPurpose.DELIVERY_19L
+    bottle_sell_count: int | None = None
     sequence: int | None = None
 
+    @field_validator("bottle_sell_count")
+    @classmethod
+    def validate_bottle_sell_count(cls, v: int | None) -> int | None:
+        if v is not None and v < 0:
+            raise ValueError(
+                "Количество проданных бутылок не может быть отрицательным"
+            )
+        return v
+
+    @model_validator(mode="after")
+    def validate_delivery_bottles(self) -> "CustomerOrderInput":
+        if (
+            self.order_purpose == OrderPurpose.DELIVERY_19L
+            and self.bottle_sell_count is None
+        ):
+            raise ValueError("Количество проданных бутылок обязательно")
+        return self
 
 class AddRouteCustomer(BaseModel):
     customer_id: UUID | None = None
-    order_purpose: OrderPurpose | None = None
-
+    order_purpose: OrderPurpose = OrderPurpose.DELIVERY_19L
+    bottle_sell_count: int | None = None
+    sequence: int | None = None
     model_config = {"extra": "ignore"}
 
+    @field_validator("bottle_sell_count")
+    @classmethod
+    def validate_bottle_sell_count(cls, v: int | None) -> int | None:
+        if v is not None and v < 0:
+            raise ValueError(
+                "Количество проданных бутылок не может быть отрицательным"
+            )
+        return v
+
+    @model_validator(mode="after")
+    def validate_delivery_bottles(self) -> "AddRouteCustomer":
+        if (
+            self.order_purpose == OrderPurpose.DELIVERY_19L
+            and self.bottle_sell_count is None
+        ):
+            raise ValueError("Количество проданных бутылок обязательно")
+        return self
 class CreateRoute(BaseModel):
     driver_id: UUID | None = None
     date: date_type

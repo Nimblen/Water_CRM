@@ -14,7 +14,7 @@ async def get_driver_report(_: CurrentAdminDep, filters: ReportDateFilterDep, se
 @router.get("/drivers/export")
 async def export_driver_report(_: CurrentAdminDep, filters: ReportDateFilterDep, service: ReportServiceDep):
     rows = await service.get_driver_report(filters)
-    return service.to_excel(rows, "driver_report.xlsx")
+    return service.to_excel(rows, "driver_report.xlsx", report_type=DriverReportRow)
 
 
 @router.get("/customers", response_model=list[CustomerReportRow])
@@ -25,7 +25,7 @@ async def get_customer_report(_: CurrentAdminDep, filters: ReportDateFilterDep, 
 @router.get("/customers/export")
 async def export_customer_report(_: CurrentAdminDep, filters: ReportDateFilterDep, service: ReportServiceDep):
     rows = await service.get_customer_report(filters)
-    return service.to_excel(rows, "customer_report.xlsx")
+    return service.to_excel(rows, "customer_report.xlsx", report_type=CustomerReportRow)
 
 
 @router.get("/general", response_model=list[GeneralReportRow])
@@ -36,4 +36,4 @@ async def get_general_report(_: CurrentAdminDep, filters: ReportDateFilterDep, s
 @router.get("/general/export")
 async def export_general_report(_: CurrentAdminDep, filters: ReportDateFilterDep, service: ReportServiceDep):
     rows = await service.get_general_report(filters)
-    return service.to_excel(rows, "general_report.xlsx")
+    return service.to_excel(rows, "general_report.xlsx", report_type=GeneralReportRow)
