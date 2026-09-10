@@ -38,6 +38,7 @@ class CustomerService:
             address=data.address,
             comment=data.comment,
             cooler_count=data.cooler_count,
+            bottle_balance=data.bottle_balance,
             custom_water_price=data.custom_water_price,
             debt=Decimal("0.00"),
             prepayment=Decimal("0.00"),
@@ -89,6 +90,8 @@ class CustomerService:
         update_data = data.model_dump(exclude_unset=True)
         if update_data.get("cooler_count") is None:
             update_data.pop("cooler_count", None)
+        if update_data.get("bottle_balance") is None:
+            update_data.pop("bottle_balance", None)
 
         new_debt = update_data.pop("debt", None)
         new_prepayment = update_data.pop("prepayment", None)

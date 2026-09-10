@@ -12,6 +12,7 @@ class CreateCustomer(BaseModel):
     comment: str | None = None
 
     cooler_count: int = Field(default=0, ge=0)
+    bottle_balance: int = Field(default=0, ge=0)
 
     debt: Decimal = Field(default=Decimal("0"), ge=0)
     prepayment: Decimal = Field(default=Decimal("0"), ge=0)
@@ -35,6 +36,14 @@ class CreateCustomer(BaseModel):
         return value
 
 
+
+    @field_validator("bottle_balance")
+    def validate_bottle_balance(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("BOTTLE_BALANCE_NEGATIVE")
+        return value
+
+
 class UpdateCustomer(BaseModel):
     full_name: str | None = Field(default=None, min_length=1, max_length=255)
     phone: str | None = Field(default=None, min_length=5, max_length=20)
@@ -43,6 +52,7 @@ class UpdateCustomer(BaseModel):
     is_active: bool | None = None
 
     cooler_count: int | None = Field(default=None, ge=0)
+    bottle_balance: int | None = Field(default=None, ge=0)
 
     debt: Decimal | None = Field(default=None, ge=0)
     prepayment: Decimal | None = Field(default=None, ge=0)
@@ -54,6 +64,13 @@ class UpdateCustomer(BaseModel):
     def validate_cooler_count(cls, value: int) -> int:
         if value < 0:
             raise ValueError("COOLER_COUNT_NEGATIVE")
+        return value
+
+
+    @field_validator("bottle_balance")
+    def validate_bottle_balance(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("BOTTLE_BALANCE_NEGATIVE")
         return value
 
 class UpdateCustomerSequence(BaseModel):
