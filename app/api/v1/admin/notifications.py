@@ -18,9 +18,7 @@ async def stream_notifications(
     last_id = int(last_event_id) if last_event_id else since
 
     async def event_generator():
-        async for event in service.event_source(last_id):
-            if await request.is_disconnected():
-                return
+        async for event in service.event_source(last_id, request):
             yield {
                 "id": str(event.id),
                 "event": event.type.value,

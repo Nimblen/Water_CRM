@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import ConnectionPool, Redis
+from app.services.notification_hub import NotificationHub
 from app.api.v1.auth import router as auth_router
 from app.api.v1.admin.drivers import router as admin_router
 from app.api.v1.drivers import router as driver_router
@@ -24,13 +25,24 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    pool = ConnectionPool.from_url(settings.REDIS_URL, max_connections=200)
-    app.state.redis = Redis(connection_pool=pool)
+    command_pool = ConnectionPool.from_url(settings.REDIS_URL, max_connections=200)
+    app.state.redis = Redis(connection_pool=command_pool)
+
+    pubsub_pool = ConnectionPool.from_url(settings.REDIS_URL, max_connections=5)
+    pubsub_redis = Redis(connection_pool=pubsub_pool)
+
+    app.state.notification_hub = NotificationHub(pubsub_redis)
+    await app.state.notification_hub.start()
+
     try:
         yield
     finally:
+        await app.state.notification_hub.stop()
+        await pubsub_redis.aclose()
+        await pubsub_pool.disconnect()
         await app.state.redis.aclose()
-        await pool.disconnect()
+        await command_pool.disconnect()
+
 
 app = FastAPI(
     title=settings.APP_NAME,

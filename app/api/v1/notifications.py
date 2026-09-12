@@ -18,7 +18,7 @@ async def stream_driver_notifications(
     last_id = int(last_event_id) if last_event_id else since
 
     async def event_generator():
-        async for event in service.event_source(user.driver.id, last_id):
+        async for event in service.event_source(user.driver.id, last_id, request):
             if await request.is_disconnected():
                 return
             yield {

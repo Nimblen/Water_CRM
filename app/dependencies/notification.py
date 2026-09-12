@@ -4,14 +4,14 @@ from app.services.notification import AdminNotificationService, DriverNotificati
 
 
 def get_notification_service(request: Request) -> AdminNotificationService:
-    return AdminNotificationService(request.app.state.redis)
+    return AdminNotificationService(request.app.state.redis, request.app.state.notification_hub)
 
 
 AdminNotificationServiceDep = Annotated[AdminNotificationService, Depends(get_notification_service)]
 
 
 def get_driver_notification_service(request: Request) -> DriverNotificationService:
-    return DriverNotificationService(request.app.state.redis)
+    return DriverNotificationService(request.app.state.redis, request.app.state.notification_hub)
 
 
 DriverNotificationServiceDep = Annotated[DriverNotificationService, Depends(get_driver_notification_service)]
