@@ -53,3 +53,4 @@ class GeneralReportRow(BaseModel):
     order_amount: Decimal
     damaged_bottles: int
     cooler_count: int
+    bottle_balance: int

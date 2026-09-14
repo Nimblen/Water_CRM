@@ -12,8 +12,8 @@ router = APIRouter(prefix="/admin/routes", tags=["admin:routes"])
 
 
 @router.post("", response_model=AdminRouteResponse, status_code=201)
-async def create_route(data: CreateRoute, _: CurrentAdminDep, service: AdminRouteServiceDep, idempotency_key: IdempotencyKeyDep):
-    route = await service.create_route(data)
+async def create_route(data: CreateRoute, admin: CurrentAdminDep, service: AdminRouteServiceDep, idempotency_key: IdempotencyKeyDep):
+    route = await service.create_route(admin.id, data)
     if idempotency_key:
         await service.idempotency_repo.save(idempotency_key, endpoint="/admin/routes", status_code=201, response_body=route.model_dump(mode="json"))
     return route
@@ -67,12 +67,14 @@ async def update_customer_sequence(
 async def add_customer(
     route_id: UUID,
     customer_id: UUID,
-    _: CurrentAdminDep,
+    admin: CurrentAdminDep,
     service: AdminRouteServiceDep,
     body: AddRouteCustomer | None = None,
 ):
     await service.add_customer(
-        route_id, customer_id, 
+        route_id, customer_id,
+        admin.id,
+        order_custom_price=body.order_custom_price if body else None,
         bottle_sell_count=body.bottle_sell_count if body else None, 
         purpose=body.order_purpose if body else None, 
         sequence=body.sequence if body else None

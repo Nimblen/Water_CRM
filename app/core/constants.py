@@ -21,6 +21,7 @@ class DeliveryStatus(str, Enum):
     ON_WAY = "on_way"
     DELIVERED = "delivered"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 class OrderPurpose(str, Enum):
     DELIVERY_19L = "delivery_19l"   # доставка капсул 19 л — поведение по умолчанию

@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 from app.db.models.payment import Payment
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, update
 from sqlalchemy.orm import contains_eager, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -190,3 +190,14 @@ class OrderRepository:
         self.session.add(payment)
         await self.session.flush()
         return payment
+
+
+    async def cancel_order(self, order_id: UUID, cancelled_by_user_id: UUID, reason: str | None = None):
+        await self.session.execute(
+            update(Order)
+            .where(Order.id == order_id)
+            .values(status=DeliveryStatus.CANCELLED, 
+                    cancelled_by_user_id=cancelled_by_user_id, 
+                    cancel_reason=reason, 
+                    cancelled_at=func.now())
+        )

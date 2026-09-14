@@ -18,7 +18,7 @@ class PriceSettingsRepository:
         price = result.scalar_one_or_none()
         if price is None:
             # первый запуск системы — записи ещё нет
-            price = PriceSettings(water_price=0, deposit_price=0)
+            price = PriceSettings(water_price=0)
             self.session.add(price)
             await self.session.flush()
         return price
@@ -32,7 +32,7 @@ class PriceSettingsRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def create(self, water_price, deposit_price, damaged_bottle_fine) -> PriceSettings:
+    async def create(self, water_price, damaged_bottle_fine) -> PriceSettings:
         # POST /admin/prices принимает подмножество полей, а установленные сборки
         # админки шлют только water_price и deposit_price. Записывать при этом
         # None в NOT NULL damaged_bottle_fine нельзя (IntegrityError), обнулять —
@@ -54,7 +54,6 @@ class PriceSettingsRepository:
 
         price = PriceSettings(
             water_price=inherit(water_price, "water_price"),
-            deposit_price=inherit(deposit_price, "deposit_price"),
             damaged_bottle_fine=inherit(damaged_bottle_fine, "damaged_bottle_fine"),
         )
         self.session.add(price)

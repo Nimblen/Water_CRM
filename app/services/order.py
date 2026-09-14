@@ -223,3 +223,21 @@ class OrderService:
             await driver_service.broadcast(
                 self.session, order.route.driver_id, NotificationType.ORDER_PAYMENT_UPDATED, payload
             )
+
+    async def admin_cancel_order(self, order_id: UUID, admin_id: UUID, reason: str | None = None) -> None:
+        order = await self.repo.get_by_id(order_id)
+        if not order:
+            raise OrderNotFoundError()
+        if order.status not in (DeliveryStatus.PENDING, DeliveryStatus.ON_WAY):
+            raise OrderAlreadyCompletedError()
+        await self.repo.cancel_order(order_id, admin_id, reason)
+
+    async def driver_cancel_order(self, order_id: UUID, driver_id: UUID, reason: str | None = None) -> None:
+        order = await self.repo.get_by_id(order_id)
+        if not order:
+            raise OrderNotFoundError()
+        if order.status not in (DeliveryStatus.PENDING, DeliveryStatus.ON_WAY):
+            raise OrderAlreadyCompletedError()
+        if order.route.driver_id != driver_id:
+            raise OrderAccessDeniedError()
+        await self.repo.cancel_order(order_id, driver_id, reason)

@@ -13,7 +13,7 @@ DRIVER_REPORT_COLUMNS = [
     ExcelColumn("customer_name_or_address", "Заказчик", ColumnType.TEXT, width=28),
     ExcelColumn("delivered_bottles", "Доставлено бутылей (19л)", ColumnType.INT, totals=True),
     ExcelColumn("returned_bottles", "Возвращено бутылей", ColumnType.INT, totals=True),
-    ExcelColumn("bottle_balance_after", "Баланс бутылей у клиента", ColumnType.INT),
+    ExcelColumn("bottle_balance_after", "Баланс бутылей у клиента", ColumnType.INT, totals=True),
     ExcelColumn("order_amount", "Сумма заказа", ColumnType.CURRENCY, totals=True),
     ExcelColumn("payment_method", "Способ оплаты", ColumnType.ENUM, labels=PAYMENT_METHOD_LABELS),
     ExcelColumn("purpose", "Цель заказа", ColumnType.ENUM, labels=ORDER_PURPOSE_LABELS),
@@ -30,10 +30,10 @@ CUSTOMER_REPORT_COLUMNS = [
     ExcelColumn("bulk_liters_purchased", "Куплено бутылей (опт)", ColumnType.INT, totals=True),
     ExcelColumn("bottles_purchased_in_period", "Куплено бутылей за период", ColumnType.INT, totals=True),
     ExcelColumn("damaged_bottles_count", "Повреждено бутылей", ColumnType.INT, totals=True),
-    ExcelColumn("current_bottle_balance", "Текущий баланс бутылей", ColumnType.INT),
-    ExcelColumn("current_cooler_count", "Кулеров у заказчика", ColumnType.INT),
-    ExcelColumn("prepayment", "Предоплата", ColumnType.CURRENCY),
-    ExcelColumn("debt", "Долг", ColumnType.CURRENCY),
+    ExcelColumn("current_bottle_balance", "Текущий баланс бутылей", ColumnType.INT, totals=True),
+    ExcelColumn("current_cooler_count", "Кулеров у заказчика", ColumnType.INT, totals=True),
+    ExcelColumn("prepayment", "Предоплата", ColumnType.CURRENCY, totals=True),
+    ExcelColumn("debt", "Долг", ColumnType.CURRENCY, totals=True),
     ExcelColumn("total_realization", "Сумма реализации", ColumnType.CURRENCY, totals=True),
 ]
 
@@ -42,10 +42,11 @@ GENERAL_REPORT_COLUMNS = [
     ExcelColumn("driver_full_name", "Водитель", ColumnType.TEXT, width=22),
     ExcelColumn("customer_name_or_address", "Заказчик", ColumnType.TEXT, width=28),
     ExcelColumn("delivered_bottles", "Доставлено бутылей", ColumnType.INT, totals=True),
+    ExcelColumn("order_amount", "Сумма заказа", ColumnType.CURRENCY, totals=True),
     ExcelColumn("returned_bottles", "Возвращено бутылей", ColumnType.INT, totals=True),
     ExcelColumn("damaged_bottles", "Повреждено бутылей", ColumnType.INT, totals=True),
-    ExcelColumn("order_amount", "Сумма заказа", ColumnType.CURRENCY, totals=True),
-    ExcelColumn("cooler_count", "Кулеров у заказчика", ColumnType.INT),
+    ExcelColumn("cooler_count", "Кулеров у заказчика", ColumnType.INT, totals=True),
+    ExcelColumn("bottle_balance", "Баланс бутылей у клиента", ColumnType.INT, totals=True),
 ]
 
 _REPORT_SPECS = {
@@ -119,6 +120,7 @@ class ReportService:
                 order_amount=r["order"].order_amount or Decimal("0.00"),
                 damaged_bottles=r["order"].damaged_bottles or 0,
                 cooler_count=r["customer"].cooler_count,
+                bottle_balance=r["customer"].bottle_balance,
             )
             for r in rows
         ]

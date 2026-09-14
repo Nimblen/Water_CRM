@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from app.dependencies.user import CurrentAdminDep
 from app.dependencies.user import CurrentUserDep
@@ -26,6 +26,7 @@ async def get_price_history(
 
 @router.post("", response_model=PriceSettingsResponse, status_code=201)
 async def set_price(
+    request: Request,
     data: CreatePriceSettings,
     _: CurrentAdminDep,
     service: PriceServiceDep,
@@ -33,5 +34,5 @@ async def set_price(
 ):
     price = await service.set_price(data)
     if idempotency_key:
-        await service.idempotency_repo.save(idempotency_key, endpoint="/admin/prices", status_code=201, response_body=price.model_dump(mode="json"))
+        await service.idempotency_repo.save(idempotency_key, endpoint=request.url.path, status_code=201, response_body=price.model_dump(mode="json"))
     return price

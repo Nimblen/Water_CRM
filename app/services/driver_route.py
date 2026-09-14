@@ -138,6 +138,7 @@ class DriverRouteService:
         if purpose == OrderPurpose.DELIVERY_19L:
             order.delivered_bottles = payload.delivered_bottles
             order.returned_bottles = payload.returned_bottles
+            order.returned_full_bottles = payload.returned_full_bottles
             order.damaged_bottles = payload.damaged_bottles
         elif purpose == OrderPurpose.BULK_WATER:
             order.bulk_5l_count = payload.bulk_5l_count

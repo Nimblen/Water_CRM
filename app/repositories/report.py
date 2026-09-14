@@ -29,7 +29,7 @@ class ReportRepository:
         )
         if filters.driver_id:
             stmt = stmt.where(Route.driver_id == filters.driver_id)
-
+        stmt = stmt.order_by(Route.date.asc(), Driver.full_name.asc())
         rows = (await self.session.execute(stmt)).all()
 
         route_ids = list({r.Route.id for r in rows})
@@ -79,7 +79,10 @@ class ReportRepository:
 
         aggregates = {row.customer_id: row for row in (await self.session.execute(orders_stmt)).all()}
 
-        customers_stmt = select(Customer).where(Customer.id.in_(aggregates.keys()))
+        customers_stmt = (select(Customer)
+                        .where(Customer.id.in_(aggregates.keys()))
+                        .order_by(Customer.full_name.asc())
+                        )
         customers = (await self.session.execute(customers_stmt)).scalars().all()
 
         return [{"customer": c, "agg": aggregates[c.id]} for c in customers]
@@ -98,6 +101,6 @@ class ReportRepository:
         )
         if filters.driver_id:
             stmt = stmt.where(Route.driver_id == filters.driver_id)
-
+        stmt = stmt.order_by(Route.date.asc())
         rows = (await self.session.execute(stmt)).all()
         return [{"order": r.Order, "route": r.Route, "driver": r.Driver, "customer": r.Customer} for r in rows]

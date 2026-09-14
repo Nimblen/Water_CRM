@@ -34,6 +34,7 @@ class OrderResponse(BaseModel):
     payment_method: PaymentMethod | None
     delivered_bottles: int | None
     returned_bottles: int | None
+    returned_full_bottles: int | None
     damaged_bottles: int | None
     bottle_balance: int | None
     bottle_balance_after: int | None
@@ -44,16 +45,25 @@ class OrderResponse(BaseModel):
     bulk_10l_price: Decimal | None
     picked_coolers: int | None
     picked_bottles: int | None
-
+    custom_price: Decimal | None
+    custom_price_set_by_user_id: UUID | None
     water_price_applied: Decimal | None
     damaged_fine_applied: Decimal | None
     order_amount: Decimal | None
     paid_amount: Decimal | None
     effective_water_price: Decimal | None = None
     damaged_bottle_fine: Decimal | None = None
+    cancel_reason: str | None
+    cancelled_by_user_id: UUID | None
+    moved_from_route_id: UUID | None
+
 
     completed_at: datetime | None
     created_at: datetime
+    cancelled_at: datetime | None
+    moved_at: datetime | None
+
+
 
     customer: OrderCustomerBrief
     route: OrderRouteBrief
@@ -118,6 +128,10 @@ class AdminPaymentUpdate(BaseModel):
     note: Optional[str] = None
 
 
+class OrderCancel(BaseModel):
+    reason: str | None = None
+
+
 def order_to_response(order, price_settings=None) -> "OrderResponse":
     payments = [
     PaymentResponse.model_validate(payment)
@@ -142,6 +156,7 @@ def order_to_response(order, price_settings=None) -> "OrderResponse":
         bottle_sell_count=order.bottle_sell_count,
         delivered_bottles=order.delivered_bottles,
         returned_bottles=order.returned_bottles,
+        returned_full_bottles=order.returned_full_bottles,
         damaged_bottles=order.damaged_bottles,
         bottle_balance=order.bottle_balance,
         bottle_balance_after=order.bottle_balance_after,
@@ -155,10 +170,17 @@ def order_to_response(order, price_settings=None) -> "OrderResponse":
         damaged_fine_applied=order.damaged_fine_applied,
         order_amount=order.order_amount,
         paid_amount=paid_amount,
+        custom_price=order.custom_price,
+        custom_price_set_by_user_id=order.custom_price_set_by_user_id,
         effective_water_price=effective_water_price,
         damaged_bottle_fine=damaged_bottle_fine,
+        cancel_reason=order.cancel_reason,
+        cancelled_by_user_id=order.cancelled_by_user_id,
+        moved_from_route_id=order.moved_from_route_id,
         completed_at=order.completed_at,
         created_at=order.created_at,
+        cancelled_at=order.cancelled_at,
+        moved_at=order.moved_at,
         customer=OrderCustomerBrief(
             customer_id=order.customer_id,
             customer_full_name=order.customer.full_name,

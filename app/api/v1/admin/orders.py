@@ -7,7 +7,7 @@ from decimal import Decimal
 from app.dependencies.user import CurrentAdminDep
 from app.dependencies.common import PaginationDep
 from app.dependencies.order import AdminOrderFiltersDep, OrderServiceDep
-from app.schemas.order import AdminPaymentUpdate, OrderResponse, MoveOrder
+from app.schemas.order import AdminPaymentUpdate, OrderCancel, OrderResponse, MoveOrder
 from app.schemas.common import PaginatedResponse
 
 router = APIRouter(prefix="/admin/orders", tags=["admin:orders"])
@@ -66,3 +66,9 @@ async def update_order_payment(
 ):
     payload, photo = parsed
     await service.update_order_payment(order_id, payload, photo, admin_id=admin.id)
+
+
+
+@router.post("/{order_id}/cancel", status_code=204)
+async def cancel_order(order_id: UUID, body: OrderCancel, admin: CurrentAdminDep, service: OrderServiceDep):
+    await service.admin_cancel_order(order_id, admin.id, body.reason)

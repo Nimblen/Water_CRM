@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from app.dependencies.driver import CurrentDriverIdDep
 from app.dependencies.common import PaginationDep
 from app.dependencies.order import DriverOrderFiltersDep, OrderServiceDep
-from app.schemas.order import OrderResponse
+from app.schemas.order import OrderCancel, OrderResponse
 from app.schemas.common import PaginatedResponse
 
 router = APIRouter(prefix="/driver/orders", tags=["driver:orders"])
@@ -27,3 +27,8 @@ async def get_my_order(
     service: OrderServiceDep,
 ):
     return await service.get_driver_order(order_id, driver_id)
+
+
+@router.post("/{order_id}/cancel", status_code=204)
+async def cancel_order(order_id: UUID, body: OrderCancel, driver_id: CurrentDriverIdDep, service: OrderServiceDep):
+    await service.driver_cancel_order(order_id, driver_id, body.reason)

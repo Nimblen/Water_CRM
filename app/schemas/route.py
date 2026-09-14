@@ -42,6 +42,7 @@ class CompleteDelivery(BaseModel):
     purpose: OrderPurpose | None = None
     delivered_bottles: int = 0
     returned_bottles: int = 0
+    returned_full_bottles: int = 0
     damaged_bottles: int = 0
     bottle_balance: int | None = None
     bulk_5l_count: int = 0
@@ -59,6 +60,7 @@ class CompleteDelivery(BaseModel):
         purpose: Annotated[OrderPurpose | None, Form()] = None,
         delivered_bottles: Annotated[int, Form(ge=0)] = 0,
         returned_bottles: Annotated[int, Form(ge=0)] = 0,
+        returned_full_bottles: Annotated[int, Form(ge=0)] = 0,
         damaged_bottles: Annotated[int, Form(ge=0)] = 0,
         bottle_balance: Annotated[int | None, Form(ge=0)] = None,
         bulk_5l_count: Annotated[int, Form(ge=0)] = 0,
@@ -82,6 +84,7 @@ class CompleteDelivery(BaseModel):
             purpose=purpose,
             delivered_bottles=delivered_bottles,
             returned_bottles=returned_bottles,
+            returned_full_bottles=returned_full_bottles,
             damaged_bottles=damaged_bottles,
             bottle_balance=bottle_balance,
             bulk_5l_count=bulk_5l_count,
@@ -135,6 +138,7 @@ class CustomerOrderInput(BaseModel):
     customer_id: UUID
     order_purpose: OrderPurpose = OrderPurpose.DELIVERY_19L
     bottle_sell_count: int | None = None
+    order_custom_price: Decimal | None = None
     sequence: int | None = None
 
     @field_validator("bottle_sell_count")
@@ -159,6 +163,7 @@ class AddRouteCustomer(BaseModel):
     customer_id: UUID | None = None
     order_purpose: OrderPurpose = OrderPurpose.DELIVERY_19L
     bottle_sell_count: int | None = None
+    order_custom_price: Decimal | None = None
     sequence: int | None = None
     model_config = {"extra": "ignore"}
 

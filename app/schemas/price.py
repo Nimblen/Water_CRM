@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field, model_validator
 class PriceSettingsResponse(BaseModel):
     id: UUID
     water_price: Decimal
-    deposit_price: Decimal
     damaged_bottle_fine: Decimal
     created_at: datetime
 
@@ -17,7 +16,6 @@ class PriceSettingsResponse(BaseModel):
 
 class CreatePriceSettings(BaseModel):
     water_price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
-    deposit_price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
     damaged_bottle_fine: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
 
     @model_validator(mode="after")

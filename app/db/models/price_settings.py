@@ -13,12 +13,6 @@ class PriceSettings(AbstractBase):
         Numeric(12, 2),
         nullable=False,
     )
-
-    deposit_price: Mapped[Decimal] = mapped_column(
-        Numeric(12, 2),
-        nullable=False,
-        default=0,
-    )
     damaged_bottle_fine: Mapped[Decimal] = mapped_column(
         Numeric(12, 2),
         nullable=False,

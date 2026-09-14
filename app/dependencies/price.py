@@ -6,7 +6,7 @@ from app.repositories.price_settings import PriceSettingsRepository
 from app.dependencies.session import SessionDep
 
 def get_price_service(session: SessionDep) -> PriceService:
-    return PriceService(PriceSettingsRepository(session))
+    return PriceService(session, PriceSettingsRepository(session))
 
 
 PriceServiceDep = Annotated[PriceService, Depends(get_price_service)]

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import ForeignKey, Integer, Numeric, Enum, DateTime, BigInteger, Identity
+from sqlalchemy import ForeignKey, Integer, Numeric, Enum, DateTime, BigInteger, Identity, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import AbstractBase
 from app.core.constants import DeliveryStatus, PaymentMethod, OrderPurpose
@@ -38,6 +38,11 @@ class Order(AbstractBase):
         nullable=True,
     )
     returned_bottles: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        server_default="0",
+    )
+    returned_full_bottles: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True,
         server_default="0",
@@ -91,6 +96,13 @@ class Order(AbstractBase):
         nullable=True,
         server_default="0",
     )
+    custom_price: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 2),
+        nullable=True,
+    )
+    custom_price_set_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+    )
     water_price_applied: Mapped[Decimal | None] = mapped_column(
         Numeric(12, 2),
         nullable=True,
@@ -136,6 +148,19 @@ class Order(AbstractBase):
     moved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+    cancel_reason: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    cancelled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    cancelled_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     route = relationship("Route", back_populates="orders", foreign_keys=[route_id],)
     customer = relationship("Customer", back_populates="orders")
