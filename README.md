@@ -427,7 +427,7 @@ created_at
 PriceSettings
 id
 water_price
-deposit_price
+damaged_bottle_fine
 updated_at
 
 ---
