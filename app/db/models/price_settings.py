@@ -14,6 +14,8 @@ class PriceSettings(AbstractBase):
         nullable=False,
     )
 
+    # Legacy: из API и бизнес-логики убрано, колонка NOT NULL в проде оставлена
+    # до отдельной миграции. Всегда пишется 0 через default.
     deposit_price: Mapped[Decimal] = mapped_column(
         Numeric(12, 2),
         nullable=False,
