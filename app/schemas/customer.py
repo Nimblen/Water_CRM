@@ -19,6 +19,7 @@ class CreateCustomer(BaseModel):
 
     custom_water_price: Decimal | None = Field(default=None, ge=0)
 
+    last_order_date: datetime | None = None
 
 
     @model_validator(mode="after")
@@ -43,6 +44,12 @@ class CreateCustomer(BaseModel):
             raise ValueError("BOTTLE_BALANCE_NEGATIVE")
         return value
 
+    @field_validator("last_order_date")
+    def validate_last_order_date(cls, value: datetime) -> datetime:
+        if value > datetime.now():
+            raise ValueError("LAST_ORDER_DATE_FUTURE")
+        return value
+
 
 class UpdateCustomer(BaseModel):
     full_name: str | None = Field(default=None, min_length=1, max_length=255)
@@ -58,6 +65,7 @@ class UpdateCustomer(BaseModel):
     prepayment: Decimal | None = Field(default=None, ge=0)
 
     custom_water_price: Decimal | None = Field(default=None, ge=0)
+    last_order_date: datetime | None = None
 
 
     @field_validator("cooler_count")
@@ -71,6 +79,12 @@ class UpdateCustomer(BaseModel):
     def validate_bottle_balance(cls, value: int) -> int:
         if value < 0:
             raise ValueError("BOTTLE_BALANCE_NEGATIVE")
+        return value
+
+    @field_validator("last_order_date")
+    def validate_last_order_date(cls, value: datetime) -> datetime:
+        if value > datetime.now():
+            raise ValueError("LAST_ORDER_DATE_FUTURE")
         return value
 
 class UpdateCustomerSequence(BaseModel):

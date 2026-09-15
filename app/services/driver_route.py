@@ -155,15 +155,10 @@ class DriverRouteService:
             order.customer.bottle_balance = payload.bottle_balance
             order.bottle_balance_after = payload.bottle_balance
         price_settings = await self.price_repo.get_current()
-        if order.custom_price:
-            order_cost = order.custom_price
-            price = order.custom_price
-            fine = price_settings.damaged_bottle_fine
-        else:
-            order_cost, price, fine = await calculate_order_cost(order, purpose, price_settings)
+        order_cost, price, fine = await calculate_order_cost(order, purpose, price_settings)
         order.water_price_applied = price
         order.damaged_fine_applied = fine
-        order.order_amount = order_cost
+        order.order_amount = order.custom_price or order_cost
         order.purpose = purpose
         order.status = DeliveryStatus.DELIVERED
         order.completed_at = datetime.now(timezone.utc)

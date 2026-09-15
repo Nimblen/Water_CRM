@@ -143,7 +143,7 @@ def order_to_response(order, price_settings=None) -> "OrderResponse":
     effective_water_price = None
     damaged_bottle_fine = None
     if not is_completed and price_settings is not None:
-        effective_water_price = order.custom_price or order.customer.custom_water_price or price_settings.water_price
+        effective_water_price = order.customer.custom_water_price or price_settings.water_price
         damaged_bottle_fine = price_settings.damaged_bottle_fine
 
     return OrderResponse(

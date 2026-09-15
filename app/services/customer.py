@@ -40,8 +40,10 @@ class CustomerService:
             cooler_count=data.cooler_count,
             bottle_balance=data.bottle_balance,
             custom_water_price=data.custom_water_price,
+            last_order_date=data.last_order_date,
             debt=Decimal("0.00"),
             prepayment=Decimal("0.00"),
+            created_by_user_id=current_user_id
         )
         customer = await self.repo.create(customer)
         await self.session.flush()
@@ -92,7 +94,8 @@ class CustomerService:
             update_data.pop("cooler_count", None)
         if update_data.get("bottle_balance") is None:
             update_data.pop("bottle_balance", None)
-
+        if update_data.get("last_order_date") is None:
+            update_data.pop("last_order_date", None)
         new_debt = update_data.pop("debt", None)
         new_prepayment = update_data.pop("prepayment", None)
 
