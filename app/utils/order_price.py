@@ -13,7 +13,7 @@ async def calculate_order_cost(
     price = order.customer.custom_water_price or price_settings.water_price
     fine = price_settings.damaged_bottle_fine
     water_sum = (
-        order.delivered_bottles * price
+        ((order.delivered_bottles or 0) - (order.returned_full_bottles or 0)) * price
         if purpose == OrderPurpose.DELIVERY_19L
         else Decimal("0.00")
     )
