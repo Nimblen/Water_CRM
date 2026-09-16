@@ -43,7 +43,6 @@ class CustomerService:
             last_order_date=data.last_order_date,
             debt=Decimal("0.00"),
             prepayment=Decimal("0.00"),
-            created_by_user_id=current_user_id
         )
         customer = await self.repo.create(customer)
         await self.session.flush()
