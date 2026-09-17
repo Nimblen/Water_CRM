@@ -1,6 +1,7 @@
 import uuid
+from decimal import Decimal
 from sqlalchemy import ForeignKey, String, Integer
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, query_expression
 from app.db.base import AbstractBase
 
 
@@ -33,6 +34,9 @@ class Driver(AbstractBase):
         default=0,
         nullable=False,
     )
+    trip_amount: Mapped[Decimal] = query_expression()
+    today_trip_amount: Mapped[Decimal] = query_expression()
+
 
     user = relationship(
         "User",

@@ -1,6 +1,7 @@
 from uuid import UUID
-from app.core.exceptions.validation import InvalidUpdateFieldsError
+from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.exceptions.validation import InvalidUpdateFieldsError
 from app.repositories.user import UserRepository
 from app.repositories.driver import DriverRepository
 from app.schemas.user import CreateDriver, DriverResponse, DriverFilters, UpdateDriver
@@ -35,7 +36,6 @@ class DriverService:
     async def create_driver(self, data: CreateDriver) -> DriverResponse:
         if await self.user_repo.get_by_phone(data.phone):
             raise PhoneAlreadyExistsError()
-
         user = User(
             phone=data.phone,
             hashed_password=hash_password(data.password),
@@ -43,15 +43,12 @@ class DriverService:
         )
         await self.user_repo.create(user)
         await self.session.flush()
-
-        driver = Driver(
-            user_id=user.id,
-            full_name=data.full_name,
-        )
+        driver = Driver(user_id=user.id, full_name=data.full_name)
+        driver.trip_amount = Decimal("0.00")
+        driver.today_trip_amount = Decimal("0.00")
         await self.driver_repo.create(driver)
         await self.session.flush()
-        await self.session.refresh(driver)
-
+        await self.session.refresh(driver, attribute_names=["id", "created_at", "updated_at"])
         return self._to_response(driver, phone=data.phone)
 
     async def get_drivers(
@@ -78,7 +75,6 @@ class DriverService:
 
     async def update_driver(self, driver_id: UUID, update_data: UpdateDriver) -> DriverResponse:
         update_dict = update_data.model_dump(exclude_unset=True)
-
         disallowed = set(update_dict) - ALLOWED_DRIVER_UPDATE_FIELDS
         if disallowed:
             raise InvalidUpdateFieldsError(disallowed)
@@ -97,7 +93,9 @@ class DriverService:
             setattr(driver, key, value)
 
         await self.session.flush()
-        await self.session.refresh(driver)
+        await self.session.refresh(driver, attribute_names=[
+            "full_name", "trip_count", "today_trip_count", "updated_at"
+        ])
         return self._to_response(driver, phone=driver.user.phone)
 
     def _to_response(self, driver: Driver, phone: str) -> DriverResponse:
@@ -107,7 +105,9 @@ class DriverService:
             phone=phone,
             full_name=driver.full_name,
             trip_count=driver.trip_count,
+            trip_amount=driver.trip_amount,
             today_trip_count=driver.today_trip_count,
+            today_trip_amount=driver.today_trip_amount,
             created_at=driver.created_at,
             updated_at=driver.updated_at,
         )

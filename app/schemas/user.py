@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,7 +17,9 @@ class DriverResponse(BaseModel):
     phone: str
     full_name: str
     trip_count: int 
+    trip_amount: Decimal
     today_trip_count: int
+    today_trip_amount: Decimal
     created_at: datetime
     updated_at: datetime
 
