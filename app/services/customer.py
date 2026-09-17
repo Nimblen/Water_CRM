@@ -35,6 +35,7 @@ class CustomerService:
         customer = Customer(
             full_name=data.full_name,
             phone=data.phone,
+            phone_secondary=data.phone_secondary,
             address=data.address,
             comment=data.comment,
             cooler_count=data.cooler_count,
@@ -82,10 +83,17 @@ class CustomerService:
         customer = await self.repo.get_by_id(customer_id)
         if not customer:
             raise CustomerNotFoundError()
-
+        # TODO: не дублировать 
         if data.phone and data.phone != customer.phone:
             existing = await self.repo.get_by_phone(data.phone)
-            if existing:
+
+            if existing and existing.id != customer.id:
+                raise CustomerPhoneAlreadyExistsError()
+
+        if data.phone_secondary and data.phone_secondary != customer.phone_secondary:
+            existing = await self.repo.get_by_phone(data.phone_secondary)
+
+            if existing and existing.id != customer.id:
                 raise CustomerPhoneAlreadyExistsError()
 
         update_data = data.model_dump(exclude_unset=True)
@@ -93,8 +101,6 @@ class CustomerService:
             update_data.pop("cooler_count", None)
         if update_data.get("bottle_balance") is None:
             update_data.pop("bottle_balance", None)
-        if update_data.get("last_order_date") is None:
-            update_data.pop("last_order_date", None)
         new_debt = update_data.pop("debt", None)
         new_prepayment = update_data.pop("prepayment", None)
 

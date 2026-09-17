@@ -31,7 +31,14 @@ class Customer(AbstractBase):
 
     phone: Mapped[str] = mapped_column(
         String(20),
+        unique=True,
         nullable=False,
+        index=True,
+    )
+    phone_secondary: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        unique=True,
         index=True,
     )
 

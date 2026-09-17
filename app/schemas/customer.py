@@ -1,6 +1,6 @@
 from typing import Self
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from pydantic import BaseModel, Field, model_validator, field_validator
 
@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, model_validator, field_validator
 class CreateCustomer(BaseModel):
     full_name: str = Field(min_length=1, max_length=255)
     phone: str = Field(min_length=5, max_length=20)
+    phone_secondary: str | None = Field(default=None, min_length=5, max_length=20)
     address: str = Field(min_length=1)
     comment: str | None = None
 
@@ -46,7 +47,7 @@ class CreateCustomer(BaseModel):
 
     @field_validator("last_order_date")
     def validate_last_order_date(cls, value: datetime) -> datetime:
-        if value > datetime.now():
+        if value and  value > datetime.now(timezone.utc):
             raise ValueError("LAST_ORDER_DATE_FUTURE")
         return value
 
@@ -54,6 +55,7 @@ class CreateCustomer(BaseModel):
 class UpdateCustomer(BaseModel):
     full_name: str | None = Field(default=None, min_length=1, max_length=255)
     phone: str | None = Field(default=None, min_length=5, max_length=20)
+    phone_secondary: str | None = Field(default=None, min_length=5, max_length=20)
     address: str | None = Field(default=None, min_length=1)
     comment: str | None = None
     is_active: bool | None = None
@@ -83,7 +85,7 @@ class UpdateCustomer(BaseModel):
 
     @field_validator("last_order_date")
     def validate_last_order_date(cls, value: datetime) -> datetime:
-        if value > datetime.now():
+        if value and  value > datetime.now(timezone.utc):
             raise ValueError("LAST_ORDER_DATE_FUTURE")
         return value
 
@@ -95,6 +97,7 @@ class CustomerResponse(BaseModel):
     id: UUID
     full_name: str
     phone: str
+    phone_secondary: str | None
     address: str
     bottle_balance: int
     prepayment: Decimal

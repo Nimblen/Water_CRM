@@ -18,6 +18,7 @@ class CustomerRepository:
                 or_(
                     Customer.full_name.ilike(pattern),
                     Customer.phone.ilike(pattern),
+                    Customer.phone_secondary.ilike(pattern),
                     Customer.address.ilike(pattern),
                 )
             )
@@ -38,7 +39,13 @@ class CustomerRepository:
         return result.scalar_one_or_none()
 
     async def get_by_phone(self, phone: str) -> Customer | None:
-        stmt = select(Customer).where(Customer.phone == phone)
+        stmt = select(Customer).where(
+            or_(
+                Customer.phone == phone,
+                Customer.phone_secondary == phone,
+            )
+        )
+
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 

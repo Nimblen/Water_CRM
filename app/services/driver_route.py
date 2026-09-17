@@ -158,7 +158,7 @@ class DriverRouteService:
         order_cost, price, fine = await calculate_order_cost(order, purpose, price_settings)
         order.water_price_applied = price
         order.damaged_fine_applied = fine
-        order.order_amount = order.custom_price or order_cost
+        order.order_amount = order_cost
         order.purpose = purpose
         order.status = DeliveryStatus.DELIVERED
         order.completed_at = datetime.now(timezone.utc)
