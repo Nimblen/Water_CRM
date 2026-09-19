@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 import uuid
 from app.db.models.payment import Payment
-from sqlalchemy import select, func, nulls_last, case
+from sqlalchemy import select, func, nulls_last, case, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -242,3 +242,29 @@ class RouteRepository:
             stats[row.route_id].expenses_total = row.expenses_total
 
         return stats
+
+    async def cancel_route_orders(
+        self,
+        route_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> None:
+        stmt = (
+            update(Order)
+            .where(
+                Order.route_id == route_id,
+                Order.status.in_(
+                    [
+                        DeliveryStatus.PENDING,
+                        DeliveryStatus.ON_WAY,
+                    ]
+                ),
+            )
+            .values(
+                status=DeliveryStatus.CANCELLED,
+                cancelled_at=func.now(),
+                cancelled_by_user_id=user_id,
+                cancel_reason="Заказ не выполнен до завершения маршрута",
+            )
+        )
+
+        await self.session.execute(stmt)

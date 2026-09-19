@@ -33,6 +33,11 @@ class Route(AbstractBase):
         default=0,
         nullable=False,
     )
+    completed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     driver = relationship("Driver", back_populates="routes")
 

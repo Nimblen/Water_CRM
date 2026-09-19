@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from app.core.exceptions.permissions import OrderAccessDeniedError
 from app.core.exceptions.validation import BulkPriceRequiredError, DeliveryQuantityRequiredError, InvalidDamagedCountError, PickupQuantityRequiredError
+from app.db.models.user import User
 from app.repositories.idempotency import IdempotencyRepository
 from app.repositories.order import OrderRepository
 from app.schemas.notification import NotificationEvent
@@ -17,7 +18,7 @@ from app.utils.order_price import calculate_order_cost
 from app.repositories.route import RouteRepository, _cash_fields
 from app.repositories.price_settings import PriceSettingsRepository 
 from app.db.models.route import Route
-from app.core.constants import DeliveryStatus, NotificationType, OrderPurpose, RouteStatus, PaymentMethod
+from app.core.constants import DeliveryStatus, NotificationType, OrderPurpose, RouteStatus, PaymentMethod, UserRole
 from app.core.exceptions.not_found import RouteNotFoundError, OrderNotFoundError
 from app.core.exceptions.conflict import InvalidDeliveryStatusError, OrderAlreadyCompletedError
 from app.services.storage import save_image
@@ -114,6 +115,38 @@ class DriverRouteService:
             },
         )
 
+    async def complete_route(
+        self,
+        route_id: UUID,
+        user: User,
+    ) -> None:
+        route = await self.route_repo.get_by_id(route_id)
+
+        if not route:
+            raise RouteNotFoundError()
+
+        if user.role != UserRole.ADMIN and route.driver_id != user.id:
+            raise OrderAccessDeniedError()
+
+        if route.status != RouteStatus.IN_PROGRESS:
+            raise OrderAlreadyCompletedError()
+
+        await self.route_repo.cancel_route_orders(
+            route_id=route_id,
+            user_id=user.id,
+        )
+
+        route.status = RouteStatus.COMPLETED
+        route.completed_by_user_id = user.id
+
+        await self.session.flush()
+        route_payload = {"route_id": str(route_id)}
+        if route.driver_id:
+            await self.driver_notifications.broadcast(
+                self.session, route.driver_id, NotificationType.ROUTE_COMPLETED, route_payload
+            )
+        await self.admin_notifications.broadcast(self.session, NotificationType.ROUTE_COMPLETED, route_payload)
+        
 
     async def complete_delivery(
         self,
@@ -181,37 +214,20 @@ class DriverRouteService:
             user_id=order.route.driver.user_id,
             reason=f"order_completion:{order.id}",
         )
-        status = await self._finalize_route_if_needed(order.route)
         order.route.completed_count += 1
         order.customer.last_order_date = order.completed_at
         order.route.driver.trip_count += 1
         order.route.driver.today_trip_count += 1
         await self.session.flush()
-        await self._notify_completion(order, status == RouteStatus.COMPLETED)
+        await self._notify_completion(order)
 
-    async def _notify_completion(self, order, route_completed: bool) -> None:
+    async def _notify_completion(self, order) -> None:
         payload = {"order_id": str(order.id), "route_id": str(order.route_id)}
         if order.route.driver_id:
             await self.driver_notifications.broadcast(
                 self.session, order.route.driver_id, NotificationType.DELIVERY_COMPLETED, payload
             )
         await self.admin_notifications.broadcast(self.session, NotificationType.DELIVERY_COMPLETED, payload)
-
-        if route_completed:
-            route_payload = {"route_id": str(order.route_id)}
-            if order.route.driver_id:
-                await self.driver_notifications.broadcast(
-                    self.session,   order.route.driver_id, NotificationType.ROUTE_COMPLETED, route_payload
-                )
-            await self.admin_notifications.broadcast(self.session, NotificationType.ROUTE_COMPLETED, route_payload)
-    async def _finalize_route_if_needed(self, route: Route) -> None:
-        if route.status == RouteStatus.CANCELLED:
-            return
-        unresolved = await self.route_repo.count_unresolved(route.id)
-        if unresolved == 0:
-            route.status = RouteStatus.COMPLETED
-        return route.status
-
 
 def _validate_completion_by_purpose(payload: CompleteDelivery, purpose: OrderPurpose) -> None:
     if purpose == OrderPurpose.BULK_WATER:

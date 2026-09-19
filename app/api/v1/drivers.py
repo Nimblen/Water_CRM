@@ -1,8 +1,9 @@
 from typing import Annotated
 from uuid import UUID
 from fastapi import APIRouter, File, Request, UploadFile, Depends
-from app.dependencies.driver import CurrentDriverIdDep, CurrentDriverUserIdDep, DriverRouteServiceDep
+from app.dependencies.driver import CurrentDriverIdDep, DriverRouteServiceDep
 from app.schemas.route import RouteResponse, RouteListItem, UpdateDeliveryStatus, CompleteDelivery
+from app.dependencies.user import CurrentUserDep
 from app.dependencies.idempotency import IdempotencyKeyDep
 router = APIRouter(prefix="/driver", tags=["driver"])
 
@@ -45,6 +46,18 @@ async def complete_delivery(
     payment_photo: UploadFile | None = File(default=None),
 ):
     await service.complete_delivery(order_id=order_id, payload=data, photo=payment_photo, driver_id=driver_id)
+    if idempotency_key:
+        await service.idempotency_repo.save(
+            idempotency_key, endpoint=request.url.path,
+            status_code=204, response_body={},
+        )
+
+
+
+
+@router.post("/routes/{route_id}/complete", status_code=204)
+async def complete_route(request: Request, route_id: UUID, user: CurrentUserDep, service: DriverRouteServiceDep, idempotency_key: IdempotencyKeyDep):
+    await service.complete_route(route_id, user=user)
     if idempotency_key:
         await service.idempotency_repo.save(
             idempotency_key, endpoint=request.url.path,
