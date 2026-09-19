@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from uuid import UUID
+from app.db.models.driver import Driver
 from app.db.models.payment import Payment
 from sqlalchemy import select, func, or_, update
 from sqlalchemy.orm import contains_eager, selectinload
@@ -201,3 +202,26 @@ class OrderRepository:
                     cancel_reason=reason, 
                     cancelled_at=func.now())
         )
+
+
+    async def get_customer_order_history(
+            self, customer_id: UUID, pagination: PaginationParams
+        ) -> tuple[list[Order], int]:
+            count_stmt = (
+                select(func.count(Order.id))
+                .where(Order.customer_id == customer_id)
+            )
+            total = (await self.session.execute(count_stmt)).scalar_one()
+
+            stmt = (
+                select(Order)
+                .join(Route, Order.route_id == Route.id)
+                .outerjoin(Driver, Route.driver_id == Driver.id)
+                .where(Order.customer_id == customer_id)
+                .options(contains_eager(Order.route).contains_eager(Route.driver))
+                .order_by(Route.date.desc(), Order.created_at.desc())
+                .offset((pagination.page - 1) * pagination.page_size)
+                .limit(pagination.page_size)
+            )
+            result = await self.session.execute(stmt)
+            return result.unique().scalars().all(), total

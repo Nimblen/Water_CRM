@@ -2,6 +2,7 @@ from typing import Self
 from uuid import UUID
 from datetime import date, datetime
 from decimal import Decimal
+from app.core.constants import OrderPurpose, PaymentMethod
 from pydantic import BaseModel, Field, model_validator, field_validator
 
 
@@ -118,3 +119,16 @@ class CustomerFilters(BaseModel):
     search: str | None = None
     is_active: bool | None = None
     has_debt: bool | None = None
+
+
+
+class CustomerOrderHistoryItem(BaseModel):
+    order_id: UUID
+    order_date: date
+    driver_full_name: str | None
+    payment_method: PaymentMethod | None
+    purpose: OrderPurpose | None
+    delivered_bottles: int
+    returned_bottles: int
+    bottle_balance_after: int | None
+    order_amount: Decimal

@@ -4,8 +4,9 @@ from fastapi import APIRouter
 from app.dependencies.user import CurrentAdminDep
 from app.dependencies.customer import CustomerServiceDep, CustomerFiltersDep
 from app.dependencies.common import PaginationDep
-from app.schemas.customer import CreateCustomer, UpdateCustomer, CustomerResponse
+from app.schemas.customer import CreateCustomer, CustomerOrderHistoryItem, UpdateCustomer, CustomerResponse
 from app.schemas.common import PaginatedResponse
+from app.dependencies.order import OrderServiceDep
 from app.dependencies.idempotency import IdempotencyKeyDep
 router = APIRouter(prefix="/admin/customers", tags=["admin:customers"])
 
@@ -58,3 +59,17 @@ async def delete_customer(
     service: CustomerServiceDep,
 ):
     await service.deactivate_customer(customer_id)
+
+
+
+@router.get(
+    "/customers/{customer_id}/orders",
+    response_model=PaginatedResponse[CustomerOrderHistoryItem],
+)
+async def get_customer_order_history(
+    customer_id: UUID,
+    pagination: PaginationDep,
+    _: CurrentAdminDep,
+    order_service: OrderServiceDep,
+):
+    return await order_service.get_customer_order_history(customer_id, pagination)

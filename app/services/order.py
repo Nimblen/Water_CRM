@@ -1,11 +1,14 @@
 from datetime import date, datetime, timezone
+from decimal import Decimal
 from uuid import UUID
+from app.repositories.customer import CustomerRepository
 from app.repositories.price_settings import PriceSettingsRepository
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.schemas.customer import CustomerOrderHistoryItem
 from fastapi import UploadFile
 from app.core.constants import DeliveryStatus, NotificationType, RouteStatus
 from app.core.exceptions.conflict import OrderAlreadyCompletedError, OrderNotCompletedError
-from app.core.exceptions.not_found import OrderNotFoundError, RouteNotFoundError
+from app.core.exceptions.not_found import CustomerNotFoundError, OrderNotFoundError, RouteNotFoundError
 from app.core.exceptions.validation import MoveDateInPastError
 from app.repositories.route import RouteRepository
 from app.services.customer_balance import CustomerBalanceService
@@ -31,6 +34,7 @@ class OrderService:
         self.session = session
         self.repo = OrderRepository(session)
         self.route_repo = RouteRepository(session)
+        self.customer_repo = CustomerRepository(session)
         self.balance_service = CustomerBalanceService(session)
         self.price_repo = PriceSettingsRepository(session)
         self.driver_notifications = driver_notifications
@@ -241,3 +245,31 @@ class OrderService:
         if order.route.driver_id != driver_id:
             raise OrderAccessDeniedError()
         await self.repo.cancel_order(order_id, driver_id, reason)
+
+
+
+    async def get_customer_order_history(
+        self, customer_id: UUID, pagination: PaginationParams
+    ) -> PaginatedResponse[CustomerOrderHistoryItem]:
+        customer = await self.customer_repo.get_by_id(customer_id)
+        if not customer:
+            raise CustomerNotFoundError()
+
+        orders, total = await self.repo.get_customer_order_history(customer_id, pagination)
+
+        items = [
+            CustomerOrderHistoryItem(
+                order_id=o.id,
+                order_date=o.route.date,
+                driver_full_name=o.route.driver.full_name if o.route.driver else None,
+                payment_method=o.payment_method,
+                purpose=o.purpose,
+                delivered_bottles=o.delivered_bottles or 0,
+                returned_bottles=o.returned_bottles or 0,
+                damaged_bottles=o.damaged_bottles or 0,
+                bottle_balance_after=o.bottle_balance_after,
+                order_amount=o.order_amount or Decimal("0.00"),
+            )
+            for o in orders
+        ]
+        return build_paginated_response(items=items, total=total, pagination=pagination)
