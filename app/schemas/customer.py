@@ -1,6 +1,6 @@
 from typing import Self
 from uuid import UUID
-from datetime import datetime, timezone
+from datetime import date, datetime
 from decimal import Decimal
 from pydantic import BaseModel, Field, model_validator, field_validator
 
@@ -20,7 +20,7 @@ class CreateCustomer(BaseModel):
 
     custom_water_price: Decimal | None = Field(default=None, ge=0)
 
-    last_order_date: datetime | None = None
+    last_order_date: date | None = None
 
 
     @model_validator(mode="after")
@@ -46,8 +46,8 @@ class CreateCustomer(BaseModel):
         return value
 
     @field_validator("last_order_date")
-    def validate_last_order_date(cls, value: datetime) -> datetime:
-        if value and  value > datetime.now(timezone.utc):
+    def validate_last_order_date(cls, value: date) -> date:
+        if value and  value > date.today():
             raise ValueError("LAST_ORDER_DATE_FUTURE")
         return value
 
@@ -67,7 +67,7 @@ class UpdateCustomer(BaseModel):
     prepayment: Decimal | None = Field(default=None, ge=0)
 
     custom_water_price: Decimal | None = Field(default=None, ge=0)
-    last_order_date: datetime | None = None
+    last_order_date: date | None = None
 
 
     @field_validator("cooler_count")
@@ -84,8 +84,8 @@ class UpdateCustomer(BaseModel):
         return value
 
     @field_validator("last_order_date")
-    def validate_last_order_date(cls, value: datetime) -> datetime:
-        if value and  value > datetime.now(timezone.utc):
+    def validate_last_order_date(cls, value: date) -> date:
+        if value and  value > date.today():
             raise ValueError("LAST_ORDER_DATE_FUTURE")
         return value
 
