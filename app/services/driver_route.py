@@ -125,8 +125,9 @@ class DriverRouteService:
         if not route:
             raise RouteNotFoundError()
 
-        if user.role != UserRole.ADMIN and route.driver_id != user.id:
-            raise OrderAccessDeniedError()
+        if user.role != UserRole.ADMIN:
+            if not user.driver or route.driver_id != user.driver.id:
+                raise OrderAccessDeniedError()
 
         if route.status != RouteStatus.IN_PROGRESS:
             raise OrderAlreadyCompletedError()
