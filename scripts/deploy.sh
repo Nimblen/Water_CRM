@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-APP_DIR="/opt/millwater"
+APP_DIR="/opt/Water_CRM"
 
 cd "$APP_DIR"
 
