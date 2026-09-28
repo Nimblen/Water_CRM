@@ -37,4 +37,4 @@ jobs:
             -i "$HOME/.ssh/prod_key" \
             -o StrictHostKeyChecking=yes \
             "$PROD_USER@$PROD_HOST" \
-            "/opt/millwater/scripts/deploy.sh"
+            "/opt/Water_CRM/scripts/deploy.sh"
