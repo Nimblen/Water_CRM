@@ -152,13 +152,15 @@ class RouteRepository:
                             bottle_sell_count: int | None = None,
                             order_custom_price: Decimal | None = None, 
                             custom_price_set_by_user_id: uuid.UUID | None = None,
-                            order_purpose: OrderPurpose = OrderPurpose.DELIVERY_19L, 
+                            order_purpose: OrderPurpose = OrderPurpose.DELIVERY_19L,
+                            comment: str | None = None, 
                             sequence: int | None = None) -> Order:
         rc = Order(route_id=route_id, customer_id=customer_id, 
                     purpose=order_purpose, status=DeliveryStatus.PENDING, 
                     bottle_sell_count=bottle_sell_count, 
                     custom_price=order_custom_price,
                     custom_price_set_by_user_id=custom_price_set_by_user_id,
+                    comment=comment,
                     sequence=sequence)
         self.session.add(rc)
         await self.session.flush()

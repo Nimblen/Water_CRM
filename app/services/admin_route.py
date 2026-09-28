@@ -73,7 +73,8 @@ class AdminRouteService:
                                         order_custom_price=customer_data.order_custom_price, 
                                         custom_price_set_by_user_id=admin_id if customer_data.order_custom_price else None, 
                                         bottle_sell_count=customer_data.bottle_sell_count, 
-                                        order_purpose=customer_data.order_purpose or OrderPurpose.DELIVERY_19L,  
+                                        order_purpose=customer_data.order_purpose or OrderPurpose.DELIVERY_19L,
+                                        comment=customer_data.comment,  
                                         sequence=customer_data.sequence or index)
 
         await self.session.flush()
@@ -146,6 +147,7 @@ class AdminRouteService:
         order_custom_price: Decimal | None = None,
         bottle_sell_count: int | None = None,
         purpose: OrderPurpose | None = None,
+        comment: str | None = None,
         sequence: int | None = None,
     ) -> None:
         route = await self.repo.get_by_id(route_id)
@@ -161,7 +163,8 @@ class AdminRouteService:
             order_custom_price=order_custom_price,
             custom_price_set_by_user_id=admin_id if order_custom_price else None, 
             bottle_sell_count=bottle_sell_count, 
-            order_purpose=purpose or OrderPurpose.DELIVERY_19L, 
+            order_purpose=purpose or OrderPurpose.DELIVERY_19L,
+            comment=comment, 
             sequence=sequence
         )
         await self.session.flush()

@@ -62,7 +62,7 @@ class OrderResponse(BaseModel):
     created_at: datetime
     cancelled_at: datetime | None
     moved_at: datetime | None
-
+    comment: str | None
 
 
     customer: OrderCustomerBrief
@@ -181,6 +181,7 @@ def order_to_response(order, price_settings=None) -> "OrderResponse":
         created_at=order.created_at,
         cancelled_at=order.cancelled_at,
         moved_at=order.moved_at,
+        comment=order.comment,
         customer=OrderCustomerBrief(
             customer_id=order.customer_id,
             customer_full_name=order.customer.full_name,

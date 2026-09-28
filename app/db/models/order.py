@@ -162,6 +162,10 @@ class Order(AbstractBase):
         nullable=True,
         index=True,
     )
+    comment: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
     route = relationship("Route", back_populates="orders", foreign_keys=[route_id],)
     customer = relationship("Customer", back_populates="orders")
     payments = relationship(

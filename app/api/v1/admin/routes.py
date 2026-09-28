@@ -76,7 +76,8 @@ async def add_customer(
         admin.id,
         order_custom_price=body.order_custom_price if body else None,
         bottle_sell_count=body.bottle_sell_count if body else None, 
-        purpose=body.order_purpose if body else None, 
+        purpose=body.order_purpose if body else None,
+        comment=body.comment if body else None, 
         sequence=body.sequence if body else None
     )
 

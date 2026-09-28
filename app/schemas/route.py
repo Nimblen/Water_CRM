@@ -140,6 +140,7 @@ class CustomerOrderInput(BaseModel):
     bottle_sell_count: int | None = None
     order_custom_price: Decimal | None = None
     sequence: int | None = None
+    comment: str | None = None
 
     @field_validator("bottle_sell_count")
     @classmethod
@@ -165,6 +166,7 @@ class AddRouteCustomer(BaseModel):
     bottle_sell_count: int | None = None
     order_custom_price: Decimal | None = None
     sequence: int | None = None
+    comment: str | None = None
     model_config = {"extra": "ignore"}
 
     @field_validator("bottle_sell_count")
