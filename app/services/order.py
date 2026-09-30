@@ -1,6 +1,7 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from uuid import UUID
+from app.db.models.user import User
 from app.repositories.customer import CustomerRepository
 from app.repositories.price_settings import PriceSettingsRepository
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -236,15 +237,15 @@ class OrderService:
             raise OrderAlreadyCompletedError()
         await self.repo.cancel_order(order_id, admin_id, reason)
 
-    async def driver_cancel_order(self, order_id: UUID, driver_id: UUID, reason: str | None = None) -> None:
+    async def driver_cancel_order(self, order_id: UUID, user: User, reason: str | None = None) -> None:
         order = await self.repo.get_by_id(order_id)
         if not order:
             raise OrderNotFoundError()
         if order.status not in (DeliveryStatus.PENDING, DeliveryStatus.ON_WAY):
             raise OrderAlreadyCompletedError()
-        if order.route.driver_id != driver_id:
+        if order.route.driver_id != user.driver.id:
             raise OrderAccessDeniedError()
-        await self.repo.cancel_order(order_id, driver_id, reason)
+        await self.repo.cancel_order(order_id, user.id, reason)
 
 
 

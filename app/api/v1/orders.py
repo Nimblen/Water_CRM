@@ -2,6 +2,7 @@ from uuid import UUID
 from fastapi import APIRouter
 
 from app.dependencies.driver import CurrentDriverIdDep
+from app.dependencies.user import CurrentUserDep
 from app.dependencies.common import PaginationDep
 from app.dependencies.order import DriverOrderFiltersDep, OrderServiceDep
 from app.schemas.order import OrderCancel, OrderResponse
@@ -30,5 +31,5 @@ async def get_my_order(
 
 
 @router.post("/{order_id}/cancel", status_code=204)
-async def cancel_order(order_id: UUID, body: OrderCancel, driver_id: CurrentDriverIdDep, service: OrderServiceDep):
-    await service.driver_cancel_order(order_id, driver_id, body.reason)
+async def cancel_order(order_id: UUID, body: OrderCancel, user: CurrentUserDep, service: OrderServiceDep):
+    await service.driver_cancel_order(order_id, user, body.reason)
