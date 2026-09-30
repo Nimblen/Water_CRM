@@ -54,14 +54,18 @@ class DriverRepository:
             )
         )
 
-    async def get_by_id(self, driver_id: UUID) -> Driver | None:
+    async def get_by_id(
+        self, driver_id: UUID, include_inactive: bool = False
+    ) -> Driver | None:
         amounts = self._amounts_subquery()
         stmt = (
             select(Driver)
             .join(Driver.user)
             .options(joinedload(Driver.user))
-            .where(Driver.id == driver_id, User.is_active.is_(True))
+            .where(Driver.id == driver_id)
         )
+        if not include_inactive:
+            stmt = stmt.where(User.is_active.is_(True))
         stmt = self._with_amounts(stmt, amounts)
         result = await self.session.execute(stmt)
         return result.unique().scalar_one_or_none()
@@ -71,7 +75,7 @@ class DriverRepository:
         pagination: PaginationParams,
         filters: DriverFilters,
     ) -> tuple[list[Driver], int]:
-        base_stmt = select(Driver).join(Driver.user).where(User.is_active.is_(True))
+        base_stmt = select(Driver).join(Driver.user).where(User.is_active.is_(filters.is_active))
         if filters.search:
             search = f"%{filters.search}%"
             base_stmt = base_stmt.where(

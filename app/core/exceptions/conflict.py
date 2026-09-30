@@ -82,3 +82,13 @@ class OrderNotCompletedError(ConflictError):
 class RouteNotInProgressError(ConflictError):
     code = "ROUTE_NOT_IN_PROGRESS"
     message = "Route not in progress"
+
+
+
+class CustomerAlreadyInRouteError(ConflictError):
+    code = "CUSTOMER_ALREADY_IN_ROUTE"
+    message = "Customer already in route"
+
+class UserAlreadyActiveError(ConflictError):
+    code = "USER_ALREADY_ACTIVE"
+    message = "User already active"

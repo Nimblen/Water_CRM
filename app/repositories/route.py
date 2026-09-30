@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 import uuid
+from app.core.exceptions.conflict import CustomerAlreadyInRouteError
 from app.db.models.payment import Payment
 from sqlalchemy import select, func, nulls_last, case, update
 from sqlalchemy.orm import selectinload
@@ -155,6 +156,14 @@ class RouteRepository:
                             order_purpose: OrderPurpose = OrderPurpose.DELIVERY_19L,
                             comment: str | None = None, 
                             sequence: int | None = None) -> Order:
+        exists = await self.session.scalar(
+            select(Order.id).where(
+                Order.route_id == route_id,
+                Order.customer_id == customer_id,
+            )
+        )
+        if exists:
+            raise CustomerAlreadyInRouteError()
         rc = Order(route_id=route_id, customer_id=customer_id, 
                     purpose=order_purpose, status=DeliveryStatus.PENDING, 
                     bottle_sell_count=bottle_sell_count, 

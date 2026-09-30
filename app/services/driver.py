@@ -12,6 +12,7 @@ from app.schemas.common import (
 )
 from app.core.exceptions.conflict import (
     PhoneAlreadyExistsError,
+    UserAlreadyActiveError,
     UserAlreadyInactiveError,
 )
 from app.core.security import hash_password
@@ -97,6 +98,15 @@ class DriverService:
             "full_name", "trip_count", "today_trip_count", "updated_at"
         ])
         return self._to_response(driver, phone=driver.user.phone)
+
+    async def activate_driver(self, driver_id: UUID) -> None:
+        driver = await self.driver_repo.get_by_id(driver_id, include_inactive=True)
+        if not driver:
+            raise DriverNotFoundError()
+        if driver.user.is_active:
+            raise UserAlreadyActiveError()
+        driver.user.is_active = True
+        await self.session.flush()
 
     def _to_response(self, driver: Driver, phone: str) -> DriverResponse:
         return DriverResponse(

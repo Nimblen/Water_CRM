@@ -22,7 +22,7 @@ from app.schemas.common import PaginationParams, PaginatedResponse, build_pagina
 from app.repositories.idempotency import IdempotencyRepository
 
 
-
+#TODO: Есть гонка при добавлении пользователей и  тд
 
 class AdminRouteService:
     def __init__(self, session: AsyncSession, driver_notifications: DriverNotificationService):

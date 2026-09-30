@@ -84,4 +84,13 @@ async def update_driver(
     service: DriverServiceDep,
 ):
     return await service.update_driver(driver_id, driver_data)
-    
+
+
+
+@router.post("/{driver_id}/activate", status_code=204)
+async def activate_driver(
+    driver_id: UUID,
+    _: CurrentAdminDep,
+    service: DriverServiceDep,
+):
+    await service.activate_driver(driver_id)

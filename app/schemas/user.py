@@ -30,6 +30,7 @@ class DriverResponse(BaseModel):
 
 class DriverFilters(BaseModel):
     search: str | None = None
+    is_active: bool = True
 
 
 class UpdateDriver(BaseModel):
