@@ -2,8 +2,9 @@ from decimal import Decimal
 from uuid import UUID
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only
 from app.db.models.customer import Customer, CustomerBalanceAdjustments
-from app.schemas.customer import CustomerFilters
+from app.schemas.customer import CustomerFilters, CustomerFiltersForDriver
 from app.schemas.common import PaginationParams
 
 
@@ -11,9 +12,10 @@ class CustomerRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    def _apply_filters(self, stmt, filters: CustomerFilters):
-        if filters.search:
-            pattern = f"%{filters.search}%"
+    def _apply_search_filter(self, stmt, search: str | None):
+        if search:
+            pattern = f"%{search}%"
+
             stmt = stmt.where(
                 or_(
                     Customer.full_name.ilike(pattern),
@@ -22,10 +24,29 @@ class CustomerRepository:
                     Customer.address.ilike(pattern),
                 )
             )
+        return stmt
+    
+    def _apply_filters(
+        self,
+        stmt,
+        filters: CustomerFilters,
+        ):
+        stmt = self._apply_search_filter(
+            stmt,
+            filters.search,
+        )
+
         if filters.is_active is not None:
-            stmt = stmt.where(Customer.is_active == filters.is_active)
+            stmt = stmt.where(
+                Customer.is_active == filters.is_active
+            )
+
         if filters.has_debt is not None:
-            stmt = stmt.where(Customer.debt > 0) if filters.has_debt else stmt.where(Customer.debt == 0)
+            if filters.has_debt:
+                stmt = stmt.where(Customer.debt > 0)
+            else:
+                stmt = stmt.where(Customer.debt == 0)
+
         return stmt
 
     async def create(self, customer: Customer) -> Customer:
@@ -69,6 +90,49 @@ class CustomerRepository:
     async def delete(self, customer: Customer) -> None:
         await self.session.delete(customer)
 
+    async def get_list_for_driver(
+        self,
+        pagination: PaginationParams,
+        filters: CustomerFiltersForDriver,
+    ) -> tuple[list[Customer], int]:
+
+        base_stmt = self._apply_search_filter(
+            select(Customer).options(
+                load_only(
+                    Customer.id,
+                    Customer.full_name,
+                    Customer.phone,
+                    Customer.phone_secondary,
+                    Customer.address,
+                    Customer.comment,
+                )
+            ),
+            filters.search,
+        ).where(
+            Customer.is_active.is_(True)
+        )
+
+        count_stmt = self._apply_search_filter(
+            select(func.count(Customer.id)),
+            filters.search,
+        ).where(
+            Customer.is_active.is_(True)
+        )
+
+        total = (
+            await self.session.execute(count_stmt)
+        ).scalar_one()
+
+        stmt = (
+            base_stmt
+            .order_by(Customer.created_at.desc())
+            .offset((pagination.page - 1) * pagination.page_size)
+            .limit(pagination.page_size)
+        )
+
+        result = await self.session.execute(stmt)
+
+        return result.scalars().all(), total
 
 
 

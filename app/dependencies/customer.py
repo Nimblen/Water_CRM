@@ -2,7 +2,7 @@ from typing import Annotated
 from fastapi import Depends
 from app.services.customer import CustomerService
 from app.dependencies.session import SessionDep
-from app.schemas.customer import CustomerFilters
+from app.schemas.customer import CustomerFilters, CustomerFiltersForDriver
 
 
 def get_customer_service(session: SessionDep) -> CustomerService:
@@ -16,5 +16,10 @@ CustomerServiceDep = Annotated[
 
 CustomerFiltersDep = Annotated[
     CustomerFilters,
+    Depends(),
+]
+
+CustomerFiltersForDriverDep = Annotated[
+    CustomerFiltersForDriver,
     Depends(),
 ]

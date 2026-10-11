@@ -114,12 +114,24 @@ class CustomerResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CustomerResponseForDriver(BaseModel):
+    id: UUID
+    full_name: str
+    phone: str
+    phone_secondary: str | None
+    address: str
+    comment: str | None
+
+    model_config = {"from_attributes": True}
+
 
 class CustomerFilters(BaseModel):
     search: str | None = None
     is_active: bool | None = None
     has_debt: bool | None = None
 
+class CustomerFiltersForDriver(BaseModel):
+    search: str | None = None
 
 
 class CustomerOrderHistoryItem(BaseModel):

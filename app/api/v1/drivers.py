@@ -1,8 +1,8 @@
 from typing import Annotated
 from uuid import UUID
 from fastapi import APIRouter, File, Request, UploadFile, Depends
-from app.dependencies.driver import CurrentDriverIdDep, DriverRouteServiceDep
-from app.schemas.route import RouteResponse, RouteListItem, UpdateDeliveryStatus, CompleteDelivery
+from app.dependencies.driver import CurrentDriverIdDep, DriverRouteServiceDep, CurrentDriverUserIdDep
+from app.schemas.route import AddRouteCustomer, RouteResponse, RouteListItem, UpdateDeliveryStatus, CompleteDelivery
 from app.dependencies.user import CurrentUserDep
 from app.dependencies.idempotency import IdempotencyKeyDep
 router = APIRouter(prefix="/driver", tags=["driver"])
@@ -63,3 +63,25 @@ async def complete_route(request: Request, route_id: UUID, user: CurrentUserDep,
             idempotency_key, endpoint=request.url.path,
             status_code=204, response_body={},
         )
+
+
+
+
+
+@router.post("/{route_id}/customers/{customer_id}", status_code=204)
+async def add_customer(
+    route_id: UUID,
+    customer_id: UUID,
+    driver_user_id: CurrentDriverUserIdDep,
+    service: DriverRouteServiceDep,
+    body: AddRouteCustomer | None = None,
+):
+    await service.add_customer(
+        route_id, customer_id,
+        driver_user_id,
+        order_custom_price=body.order_custom_price if body else None,
+        bottle_sell_count=body.bottle_sell_count if body else None, 
+        purpose=body.order_purpose if body else None,
+        comment=body.comment if body else None, 
+        sequence=body.sequence if body else None
+    )

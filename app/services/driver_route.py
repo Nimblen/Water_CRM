@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from app.core.exceptions.permissions import OrderAccessDeniedError
 from app.core.exceptions.validation import BulkPriceRequiredError, DeliveryQuantityRequiredError, InvalidDamagedCountError, PickupQuantityRequiredError
 from app.db.models.user import User
+from app.repositories.customer import CustomerRepository
 from app.repositories.idempotency import IdempotencyRepository
 from app.repositories.order import OrderRepository
 from app.schemas.notification import NotificationEvent
@@ -19,7 +20,7 @@ from app.repositories.route import RouteRepository, _cash_fields
 from app.repositories.price_settings import PriceSettingsRepository 
 from app.db.models.route import Route
 from app.core.constants import DeliveryStatus, NotificationType, OrderPurpose, RouteStatus, PaymentMethod, UserRole
-from app.core.exceptions.not_found import RouteNotFoundError, OrderNotFoundError
+from app.core.exceptions.not_found import CustomerNotFoundError, RouteNotFoundError, OrderNotFoundError
 from app.core.exceptions.conflict import InvalidDeliveryStatusError, OrderAlreadyCompletedError
 from app.services.storage import save_image
 from app.schemas.route import (
@@ -38,6 +39,7 @@ class DriverRouteService:
         self.session = session
         self.route_repo = RouteRepository(session)
         self.price_repo = PriceSettingsRepository(session)
+        self.customer_repo = CustomerRepository(session)
         self.balance_service = CustomerBalanceService(session)
         self.order_repo = OrderRepository(session)
         self.admin_notifications = admin_notifications
@@ -80,6 +82,46 @@ class DriverRouteService:
             orders=customers,
             **_cash_fields(cash_stats[route_id]),
         )
+
+
+    async def add_customer(
+        self,
+        route_id: UUID,
+        customer_id: UUID,
+        admin_id: UUID,
+        order_custom_price: Decimal | None = None,
+        bottle_sell_count: int | None = None,
+        purpose: OrderPurpose | None = None,
+        comment: str | None = None,
+        sequence: int | None = None,
+    ) -> None:
+        route = await self.route_repo.get_by_id(route_id)
+        if not route:
+            raise RouteNotFoundError()
+        customer = await self.customer_repo.get_by_id(customer_id)
+        if not customer or not customer.is_active:
+            raise CustomerNotFoundError()
+        await self.route_repo.add_customer(
+            route_id, customer_id,
+            order_custom_price=order_custom_price,
+            custom_price_set_by_user_id=admin_id if order_custom_price else None, 
+            bottle_sell_count=bottle_sell_count, 
+            order_purpose=purpose or OrderPurpose.DELIVERY_19L,
+            comment=comment, 
+            sequence=sequence
+        )
+        await self.session.flush()
+        await self.admin_notifications.broadcast(
+            self.session,
+            NotificationType.CUSTOMER_ADDED,
+            {
+                "route_id": str(route.id),
+                "customer_id": str(customer.id),
+                "customer_full_name": customer.full_name,
+                "customer_address": customer.address,
+            },
+        )
+
     async def update_delivery_status(
         self,
         route_customer_id: UUID,
@@ -198,7 +240,7 @@ class DriverRouteService:
         order.completed_at = datetime.now(timezone.utc)
         order.payment_method = payload.payment_method
 
-        if payload.payment_method != PaymentMethod.DEBT:
+        if payload.payment_method != PaymentMethod.DEBT and payload.payment_amount > 0:
             await self.order_repo.add_payment(
                 order_id=order.id,
                 customer_id=order.customer_id,
@@ -246,11 +288,24 @@ def _validate_completion_by_purpose(payload: CompleteDelivery, purpose: OrderPur
             )
 
     elif purpose == OrderPurpose.PICKUP:
-        if payload.picked_coolers == 0 and payload.picked_bottles == 0 and payload.damaged_bottles == 0:
+        has_items = (
+            payload.picked_coolers > 0
+            or payload.picked_bottles > 0
+            or payload.damaged_bottles > 0
+        )
+        has_money = payload.payment_amount > 0
+
+        if not (has_items or has_money):
             raise PickupQuantityRequiredError(
-                "picked_coolers, picked_bottles or damaged_bottles must be > 0"
+                "picked_coolers, picked_bottles, damaged_bottles or payment_amount must be > 0"
             )
-    if payload.damaged_bottles > payload.returned_bottles + payload.delivered_bottles:
+        if has_money and payload.payment_method == PaymentMethod.DEBT:
+            raise PickupQuantityRequiredError(
+                "payment_method cannot be DEBT when collecting money"
+            )
+    if purpose != OrderPurpose.PICKUP and (
+        payload.damaged_bottles > payload.returned_bottles + payload.delivered_bottles
+    ):
         raise InvalidDamagedCountError(
             "damaged_bottles must be <= returned_bottles + delivered_bottles"
         )

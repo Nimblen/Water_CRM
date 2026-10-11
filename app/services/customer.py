@@ -1,17 +1,19 @@
 from decimal import Decimal
 from uuid import UUID
-from app.db.models.customer import Customer, CustomerBalanceAdjustments
+from app.db.models.customer import Customer
 from app.repositories.customer import CustomerRepository, CustomerBalanceAdjustmentsRepository
 from app.repositories.idempotency import IdempotencyRepository
 from app.schemas.customer import (
     CreateCustomer,
+    CustomerFiltersForDriver,
+    CustomerResponseForDriver,
     UpdateCustomer,
     CustomerResponse,
     CustomerFilters,
 )
 from app.schemas.common import PaginationParams, PaginatedResponse, build_paginated_response
 from app.core.exceptions.not_found import CustomerNotFoundError
-from app.core.exceptions.conflict import BothBalancesSetError, CustomerPhoneAlreadyExistsError, CustomerAlreadyActiveError, CustomerAlreadyInactiveError
+from app.core.exceptions.conflict import CustomerAlreadyActiveError, CustomerAlreadyInactiveError
 from app.services.customer_balance import CustomerBalanceService
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,9 +30,6 @@ class CustomerService:
 
         
     async def create_customer(self, data: CreateCustomer, current_user_id: UUID) -> CustomerResponse:
-        existing = await self.repo.get_by_phone(data.phone)
-        if existing:
-            raise CustomerPhoneAlreadyExistsError()
 
         customer = Customer(
             full_name=data.full_name,
@@ -83,18 +82,7 @@ class CustomerService:
         customer = await self.repo.get_by_id(customer_id)
         if not customer:
             raise CustomerNotFoundError()
-        # TODO: не дублировать 
-        if data.phone and data.phone != customer.phone:
-            existing = await self.repo.get_by_phone(data.phone)
 
-            if existing and existing.id != customer.id:
-                raise CustomerPhoneAlreadyExistsError()
-
-        if data.phone_secondary and data.phone_secondary != customer.phone_secondary:
-            existing = await self.repo.get_by_phone(data.phone_secondary)
-
-            if existing and existing.id != customer.id:
-                raise CustomerPhoneAlreadyExistsError()
 
         update_data = data.model_dump(exclude_unset=True)
         if update_data.get("cooler_count") is None:
@@ -138,3 +126,13 @@ class CustomerService:
         customer.is_active = True
         await self.session.flush()
 
+    async def get_customers_for_driver(
+        self, pagination: PaginationParams, filters: CustomerFiltersForDriver
+    ) -> PaginatedResponse[CustomerResponseForDriver]:
+        customers, total = await self.repo.get_list_for_driver(pagination, filters)
+        
+        return build_paginated_response(
+            items=[CustomerResponseForDriver.model_validate(c) for c in customers],
+            total=total,
+            pagination=pagination,
+        )

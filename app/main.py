@@ -16,6 +16,7 @@ from app.api.v1.admin.notifications import router as admin_notification
 from app.api.v1.notifications import router as driver_notification
 from app.api.v1.admin.expenses import router as admin_expenses
 from app.api.v1.driver_expenses import router as driver_expenses
+from app.api.v1.customers import router as driver_customer
 from app.middlewares.logging_middleware import logging_middleware
 from app.core.exceptions.handlers import register_exception_handlers
 from app.core.config import get_settings
@@ -67,6 +68,7 @@ app.include_router(admin_price)
 app.include_router(admin_routes)
 app.include_router(admin_reports)
 app.include_router(admin_expenses)
+app.include_router(driver_customer)
 app.include_router(driver_router)
 app.include_router(driver_orders)
 app.include_router(driver_expenses)
