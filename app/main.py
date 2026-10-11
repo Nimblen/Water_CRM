@@ -47,9 +47,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.APP_NAME,
-    lifespan=lifespan
+    lifespan=lifespan,
+    version="1.0.0",
+    root_path="/api/v1",
 )
-
+#TODO: Настроить CORS под фронт 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
